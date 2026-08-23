@@ -1,1 +1,18 @@
+# Block build outputs
+target/
+build/
+bin/
+
+# Block compiled binaries
+*.class
+*.jar
+*.war
+*.ear
+
+# Block IDE settings (Optional but recommended)
 .idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
