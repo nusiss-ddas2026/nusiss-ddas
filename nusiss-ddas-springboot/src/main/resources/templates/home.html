@@ -9,8 +9,31 @@
 <body>
     <div class="container">
         <div class="home-page">
-            <h2>Welcome to the Home Page!</h2>
-            <p>You have successfully logged in.</p>
+            <h2>Welcome <span th:text="${username}"></span>!</h2>
+            
+            <h3 th:if="${documents != null and !documents.isEmpty()}">My Documents</h3>
+            <table th:if="${documents != null and !documents.isEmpty()}">
+                <thead>
+                    <tr>
+                        <th>Document ID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Uploader</th>
+                        <th>Status</th>
+                        <th>Created On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="doc : ${documents}">
+                        <td th:text="${doc.documentId}"></td>
+                        <td th:text="${doc.documentName}"></td>
+                        <td th:text="${doc.documentType}"></td>
+                        <td th:text="${doc.uploader}"></td>
+                        <td th:text="${doc.status}"></td>
+                        <td th:text="${#temporals.format(doc.createdOn, 'yyyy-MM-dd HH:mm:ss')}"></td>
+                    </tr>
+                </tbody>
+            </table>
             
             <form th:action="@{/logout}" method="post">
                 <button type="submit" class="btn btn-logout">Logout</button>

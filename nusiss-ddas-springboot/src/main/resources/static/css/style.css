@@ -15,7 +15,7 @@ body {
 
 .container {
     width: 100%;
-    max-width: 400px;
+    max-width: 900px;
     padding: 20px;
 }
 
@@ -77,6 +77,12 @@ input:focus {
     transform: translateY(-2px);
 }
 
+.btn-login {
+    width: auto;
+    display: inline-block;
+    padding: 12px 40px;
+}
+
 .btn-logout {
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     margin-top: 20px;
@@ -119,7 +125,40 @@ input:focus {
 }
 
 .home-page {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     text-align: center;
+    max-width: 900px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background: white;
+}
+
+th, td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    text-align: left;
+    font-size: 14px;
+}
+
+th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background: #f9f9f9;
+}
+
+tr:hover {
+    background: #f1f1f1;
 }
 
 .home-page p {
