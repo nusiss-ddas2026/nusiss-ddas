@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface DocumentRepository extends JpaRepository<Document, Integer> {
     List<Document> findByUploader(String uploader);
+    List<Document> findByUploaderIn(List<String> uploaders);
 }

@@ -48,19 +48,27 @@ public class DataInitializer {
                 manager.setUsername("manager");
                 manager.setPassword(passwordEncoder.encode("manager123"));
                 manager.setEmail("manager@nus.edu.sg");
-                manager.setRole("APPROVER");
+                manager.setRole("MANAGER");
                 manager.setDept("CS");
                 userRepository.save(manager);
             }
 
             if (documentRepository.count() == 0) {
-                Document doc = new Document();
-                doc.setDocumentName("New user application request");
-                doc.setDocumentType("Request");
-                doc.setUploader("user");
-                doc.setStatus("PENDING");
-                doc.setCreatedOn(LocalDateTime.of(2026, 8, 29, 17, 20, 0));
-                documentRepository.save(doc);
+                Document doc1 = new Document();
+                doc1.setDocumentName("New user application request");
+                doc1.setDocumentType("Request");
+                doc1.setUploader("user");
+                doc1.setStatus("PENDING");
+                doc1.setCreatedOn(LocalDateTime.of(2026, 8, 29, 17, 20, 0));
+                documentRepository.save(doc1);
+
+                Document doc2 = new Document();
+                doc2.setDocumentName("Request for increase funding to my Personal bank account");
+                doc2.setDocumentType("Request");
+                doc2.setUploader("manager");
+                doc2.setStatus("PENDING");
+                doc2.setCreatedOn(LocalDateTime.of(2026, 8, 30, 4, 44, 44));
+                documentRepository.save(doc2);
             }
         };
     }

@@ -11,34 +11,236 @@
         <div class="home-page">
             <h2>Welcome <span th:text="${username}"></span>!</h2>
             
-            <h3 th:if="${documents != null and !documents.isEmpty()}">My Documents</h3>
-            <table th:if="${documents != null and !documents.isEmpty()}">
-                <thead>
-                    <tr>
-                        <th>Document ID</th>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Uploader</th>
-                        <th>Status</th>
-                        <th>Created On</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr th:each="doc : ${documents}">
-                        <td th:text="${doc.documentId}"></td>
-                        <td th:text="${doc.documentName}"></td>
-                        <td th:text="${doc.documentType}"></td>
-                        <td th:text="${doc.uploader}"></td>
-                        <td th:text="${doc.status}"></td>
-                        <td th:text="${#temporals.format(doc.createdOn, 'yyyy-MM-dd HH:mm:ss')}"></td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="mode-buttons">
+                <button class="mode-btn" data-mode="myDocuments" th:classappend="${activeMode == 'myDocuments'} ? ' active' : ''" onclick="switchMode('myDocuments', this)">My Documents</button>
+                <button class="mode-btn" data-mode="requestManagement" th:if="${userRole == 'MANAGER'}" th:classappend="${activeMode == 'requestManagement'} ? ' active' : ''" onclick="switchMode('requestManagement', this)">Request Management</button>
+                <button class="mode-btn" data-mode="userManagement" th:if="${userRole == 'ADMIN'}" th:classappend="${activeMode == 'userManagement'} ? ' active' : ''" onclick="switchMode('userManagement', this)">User Management</button>
+            </div>
+            
+            <div id="myDocumentsSection" class="mode-section">
+                <h3>My Documents</h3>
+                <table th:if="${myDocuments != null and !myDocuments.isEmpty()}">
+                    <thead>
+                        <tr>
+                            <th>Document ID</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Uploader</th>
+                            <th>Status</th>
+                            <th>Created On</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="doc : ${myDocuments}">
+                            <td th:text="${doc.documentId}"></td>
+                            <td th:text="${doc.documentName}"></td>
+                            <td th:text="${doc.documentType}"></td>
+                            <td th:text="${doc.uploader}"></td>
+                            <td th:text="${doc.status}"></td>
+                            <td th:text="${#temporals.format(doc.createdOn, 'yyyy-MM-dd HH:mm:ss')}"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p th:if="${myDocuments == null or myDocuments.isEmpty()}">No documents found.</p>
+            </div>
+            
+            <div id="requestManagementSection" class="mode-section" style="display: none;">
+                <h3>Request Management</h3>
+                <form id="requestForm" th:action="@{/reviewDocument}" method="post">
+                    <input type="hidden" name="mode" th:value="${activeMode}">
+                    <table th:if="${deptDocuments != null and !deptDocuments.isEmpty()}">
+                        <thead>
+                            <tr>
+                                <th>Document ID</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Uploader</th>
+                                <th>Status</th>
+                                <th>Created On</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="doc : ${deptDocuments}">
+                                <td th:text="${doc.documentId}"></td>
+                                <td th:text="${doc.documentName}"></td>
+                                <td th:text="${doc.documentType}"></td>
+                                <td th:text="${doc.uploader}"></td>
+                                <td th:text="${doc.status}"></td>
+                                <td th:text="${#temporals.format(doc.createdOn, 'yyyy-MM-dd HH:mm:ss')}"></td>
+                                <td>
+                                    <span th:if="${doc.status == 'PENDING'}" th:id="'status_' + ${doc.documentId}" th:text="${doc.status}"></span>
+                                    <select th:if="${doc.status == 'PENDING'}" th:id="'action_' + ${doc.documentId}" style="display:none;">
+                                        <option value="REVIEW" selected>REVIEW</option>
+                                        <option value="APPROVE">APPROVE</option>
+                                        <option value="REJECT">REJECT</option>
+                                    </select>
+                                    <span th:if="${doc.status != 'PENDING'}" th:text="${doc.status}"></span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p th:if="${deptDocuments == null or deptDocuments.isEmpty()}">No requests found.</p>
+                    <div style="text-align: right; margin-top: 15px;">
+                        <button type="button" class="btn-save" onclick="saveChanges()">Save</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="userManagementSection" class="mode-section" style="display: none;">
+                <h3>User Management</h3>
+                <form id="userForm" th:action="@{/bulkUpdateUsers}" method="post">
+                    <input type="hidden" name="mode" th:value="${activeMode}">
+                    <table th:if="${allUsers != null and !allUsers.isEmpty()}">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Dept</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="user : ${allUsers}">
+                                <td th:text="${user.username}"></td>
+                                <td th:text="${user.email}"></td>
+                                <td>
+                                    <span th:id="'roleSpan_' + ${user.id}" th:text="${user.role}"></span>
+                                    <select th:id="'role_' + ${user.id}" style="display:none;">
+                                        <option value="USER" th:selected="${user.role == 'USER'}">USER</option>
+                                        <option value="ADMIN" th:selected="${user.role == 'ADMIN'}">ADMIN</option>
+                                        <option value="MANAGER" th:selected="${user.role == 'MANAGER'}">MANAGER</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <span th:id="'deptSpan_' + ${user.id}" th:text="${user.dept}"></span>
+                                    <select th:id="'dept_' + ${user.id}" style="display:none;">
+                                        <option value="IT" th:selected="${user.dept == 'IT'}">IT</option>
+                                        <option value="CS" th:selected="${user.dept == 'CS'}">CS</option>
+                                        <option value="OTHER" th:selected="${user.dept == 'OTHER'}">OTHER</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="text-align: right; margin-top: 15px;">
+                        <button type="button" class="btn-save" onclick="saveUserChanges()">Save</button>
+                    </div>
+                </form>
+            </div>
             
             <form th:action="@{/logout}" method="post">
-                <button type="submit" class="btn btn-logout">Logout</button>
+                <button type="submit" class="btn-logout">Logout</button>
             </form>
         </div>
     </div>
+    
+    <script th:inline="javascript">
+        function switchMode(mode, btn) {
+            document.getElementById('myDocumentsSection').style.display = 'none';
+            document.getElementById('requestManagementSection').style.display = 'none';
+            document.getElementById('userManagementSection').style.display = 'none';
+            
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            document.getElementById(mode + 'Section').style.display = 'block';
+        }
+        
+        function saveChanges() {
+            var form = document.getElementById('requestForm');
+            var selects = form.querySelectorAll('select[id^="action_"]');
+            
+            form.querySelectorAll('.doc-id-input').forEach(el => el.remove());
+            
+            selects.forEach(function(select) {
+                var docId = select.id.replace('action_', '');
+                var action = select.value;
+                
+                var idInput = document.createElement('input');
+                idInput.type = 'hidden';
+                idInput.name = 'documentId';
+                idInput.value = docId;
+                idInput.classList.add('doc-id-input');
+                form.appendChild(idInput);
+                
+                var actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'action';
+                actionInput.value = action;
+                actionInput.classList.add('doc-id-input');
+                form.appendChild(actionInput);
+            });
+            
+form.submit();
+        }
+        
+        function saveUserChanges() {
+            var form = document.getElementById('userForm');
+            
+            form.querySelectorAll('.user-input').forEach(el => el.remove());
+            
+            var roleSelects = form.querySelectorAll('select[id^="role_"]');
+            var deptSelects = form.querySelectorAll('select[id^="dept_"]');
+            
+            for (var i = 0; i < roleSelects.length; i++) {
+                var userId = roleSelects[i].id.replace('role_', '');
+                form.appendChild(createHiddenInput('userId', userId));
+            }
+            
+            for (var i = 0; i < roleSelects.length; i++) {
+                form.appendChild(createHiddenInput('role', roleSelects[i].value));
+            }
+            
+            for (var i = 0; i < deptSelects.length; i++) {
+                form.appendChild(createHiddenInput('dept', deptSelects[i].value));
+            }
+            
+            form.submit();
+        }
+        
+        function createHiddenInput(name, value) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            input.classList.add('user-input');
+            return input;
+        }
+        
+        window.onload = function() {
+            var activeBtn = document.querySelector('.mode-btn.active');
+            if (activeBtn) {
+                var mode = activeBtn.getAttribute('data-mode');
+                if (mode !== 'myDocuments') {
+                    document.getElementById('myDocumentsSection').style.display = 'none';
+                    document.getElementById('requestManagementSection').style.display = 'none';
+                    document.getElementById('userManagementSection').style.display = 'none';
+                    document.getElementById(mode + 'Section').style.display = 'block';
+                }
+            }
+            
+            var selects = document.querySelectorAll('select[id^="action_"]');
+            selects.forEach(function(select) {
+                var statusSpan = document.getElementById('status_' + select.id.replace('action_', ''));
+                statusSpan.style.display = 'none';
+                select.style.display = 'inline-block';
+            });
+            
+            var roleSelects = document.querySelectorAll('select[id^="role_"]');
+            roleSelects.forEach(function(select) {
+                var span = document.getElementById('roleSpan_' + select.id.replace('role_', ''));
+                span.style.display = 'none';
+                select.style.display = 'inline-block';
+            });
+            
+            var deptSelects = document.querySelectorAll('select[id^="dept_"]');
+            deptSelects.forEach(function(select) {
+                var span = document.getElementById('deptSpan_' + select.id.replace('dept_', ''));
+                span.style.display = 'none';
+                select.style.display = 'inline-block';
+            });
+        };
+    </script>
 </body>
 </html>

@@ -84,8 +84,77 @@ input:focus {
 }
 
 .btn-logout {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     margin-top: 20px;
+    width: auto;
+    display: inline-block;
+    padding: 12px 40px;
+    color: white;
+    font-weight: 600;
+}
+
+.mode-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.mode-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    background: #ddd;
+    color: #333;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.3s;
+}
+
+.mode-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.mode-btn:hover {
+    background: #ccc;
+}
+
+.mode-btn.active:hover {
+    background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
+}
+
+.btn-approve {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 3px;
+    background: #4caf50;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    margin-right: 5px;
+}
+
+.btn-reject {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 3px;
+    background: #f44336;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.inline-form {
+    display: inline;
+}
+
+.inline-form select {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 14px;
 }
 
 .register-link {
