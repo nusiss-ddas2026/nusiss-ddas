@@ -43,15 +43,16 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .headers(headers -> headers
-                .frameOptions(frame -> frame.disable())
                 .contentSecurityPolicy(csp -> csp
-                    .policyDirectives("frame-src 'self' 'unsafe-inline' data:; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;")
+                    .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;")
                 )
             )
             .csrf(CsrfConfigurer::disable)
             .authenticationProvider(authenticationProvider())
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/register", "/css/**", "/js/**", "/h2-console/**").permitAll()
+                .requestMatchers("/register", "/css/**", "/js/**").permitAll()
+                .requestMatchers("/updateRole", "/updateDept", "/bulkUpdateUsers").hasRole("ADMIN")
+                .requestMatchers("/reviewDocument").hasAnyRole("APPROVER", "ADMIN")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

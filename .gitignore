@@ -3,6 +3,9 @@ target/
 build/
 bin/
 
+# Block locally stored uploaded documents
+uploads/
+
 # Block compiled binaries
 *.class
 *.jar

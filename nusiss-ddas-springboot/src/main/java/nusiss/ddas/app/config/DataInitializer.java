@@ -1,16 +1,25 @@
 package nusiss.ddas.app.config;
 
+import nusiss.ddas.app.model.Department;
 import nusiss.ddas.app.model.Document;
 import nusiss.ddas.app.model.User;
+import nusiss.ddas.app.model.enums.DocumentType;
+import nusiss.ddas.app.model.enums.Role;
+import nusiss.ddas.app.repository.DepartmentRepository;
 import nusiss.ddas.app.repository.DocumentRepository;
 import nusiss.ddas.app.repository.UserRepository;
+import nusiss.ddas.app.util.FileHashUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @Configuration
 public class DataInitializer {
@@ -19,57 +28,80 @@ public class DataInitializer {
     private UserRepository userRepository;
 
     @Autowired
+    private DepartmentRepository departmentRepository;
+
+    @Autowired
     private DocumentRepository documentRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Value("${app.storage.upload-dir}")
+    private String uploadDir;
+
     @Bean
     CommandLineRunner initDatabase() {
         return args -> {
+            Department it = departmentRepository.findByDeptName("IT").orElseThrow();
+            Department cs = departmentRepository.findByDeptName("CS").orElseThrow();
+
             if (userRepository.count() == 0) {
                 User admin = new User();
                 admin.setUsername("admin");
-                admin.setPassword(passwordEncoder.encode("admin123"));
+                admin.setPasswordHash(passwordEncoder.encode("admin123"));
                 admin.setEmail("admin@nus.edu.sg");
-                admin.setRole("ADMIN");
-                admin.setDept("IT");
+                admin.setRole(Role.ADMIN);
+                admin.setDepartment(it);
                 userRepository.save(admin);
 
                 User user = new User();
                 user.setUsername("user");
-                user.setPassword(passwordEncoder.encode("user123"));
+                user.setPasswordHash(passwordEncoder.encode("user123"));
                 user.setEmail("user@nus.edu.sg");
-                user.setRole("USER");
-                user.setDept("CS");
+                user.setRole(Role.USER);
+                user.setDepartment(cs);
+                user.setCreatedBy(admin);
                 userRepository.save(user);
 
-                User manager = new User();
-                manager.setUsername("manager");
-                manager.setPassword(passwordEncoder.encode("manager123"));
-                manager.setEmail("manager@nus.edu.sg");
-                manager.setRole("MANAGER");
-                manager.setDept("CS");
-                userRepository.save(manager);
+                User approver = new User();
+                approver.setUsername("manager");
+                approver.setPasswordHash(passwordEncoder.encode("manager123"));
+                approver.setEmail("manager@nus.edu.sg");
+                approver.setRole(Role.APPROVER);
+                approver.setDepartment(cs);
+                approver.setCreatedBy(admin);
+                userRepository.save(approver);
             }
 
             if (documentRepository.count() == 0) {
-                Document doc1 = new Document();
-                doc1.setDocumentName("New user application request");
-                doc1.setDocumentType("Request");
-                doc1.setUploader("user");
-                doc1.setStatus("PENDING");
-                doc1.setCreatedOn(LocalDateTime.of(2026, 8, 29, 17, 20, 0));
-                documentRepository.save(doc1);
+                User user = userRepository.findByUsername("user").orElseThrow();
+                User approver = userRepository.findByUsername("manager").orElseThrow();
 
-                Document doc2 = new Document();
-                doc2.setDocumentName("Request for increase funding to my Personal bank account");
-                doc2.setDocumentType("Request");
-                doc2.setUploader("manager");
-                doc2.setStatus("PENDING");
-                doc2.setCreatedOn(LocalDateTime.of(2026, 8, 30, 4, 44, 44));
-                documentRepository.save(doc2);
+                documentRepository.save(seedDocument(
+                    "Annual Leave Application", DocumentType.LEAVE, user,
+                    "Requesting 5 days of annual leave from 2026-09-14 to 2026-09-18."));
+
+                documentRepository.save(seedDocument(
+                    "Laptop Procurement Request", DocumentType.PROCUREMENT, approver,
+                    "Requesting approval to purchase a replacement laptop for the CS department."));
+
+                documentRepository.save(seedDocument(
+                    "Medical Certificate Submission", DocumentType.MEDICAL, user,
+                    "Submitting medical certificate for sick leave taken on 2026-08-29."));
             }
         };
+    }
+
+    private Document seedDocument(String docName, DocumentType docType, User uploader, String content) throws IOException {
+        Path dir = Path.of(uploadDir);
+        Files.createDirectories(dir);
+
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+        String fileName = docType.name().toLowerCase() + "-" + System.nanoTime() + ".txt";
+        Path filePath = dir.resolve(fileName);
+        Files.write(filePath, bytes);
+
+        String fileHash = FileHashUtil.sha256Hex(bytes);
+        return new Document(docName, docType, uploader, filePath.toString(), fileHash);
     }
 }

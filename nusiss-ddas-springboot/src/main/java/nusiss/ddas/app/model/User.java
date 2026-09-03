@@ -1,50 +1,72 @@
 package nusiss.ddas.app.model;
 
-import jakarta.persistence.*;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.persistence.*;
+import nusiss.ddas.app.model.enums.Role;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "users")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "user_id")
+    private Integer userId;
 
     @NotEmpty(message = "Username is required")
     @Column(unique = true, nullable = false)
     private String username;
 
-    @NotEmpty(message = "Password is required")
-    @Column(nullable = false)
-    private String password;
-
     @NotEmpty(message = "Email is required")
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(nullable = false)
-    private String role;
+    @NotEmpty(message = "Password is required")
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
+
+    // Not persisted; only used to carry the raw password from the registration form
+    // before it is hashed into passwordHash.
+    @Transient
+    private String password;
 
     @Column(nullable = false)
-    private String dept;
+    private Role role = Role.USER;
+
+    @ManyToOne
+    @JoinColumn(name = "dept_id")
+    private Department department;
+
+    @Column(name = "is_deleted", nullable = false)
+    private boolean isDeleted = false;
+
+    @ManyToOne
+    @JoinColumn(name = "created_by")
+    private User createdBy;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
 
     public User() {
     }
 
-    public User(String username, String password, String email, String role, String dept) {
+    public User(String username, String email, String passwordHash, Role role, Department department) {
         this.username = username;
-        this.password = password;
         this.email = email;
+        this.passwordHash = passwordHash;
         this.role = role;
-        this.dept = dept;
+        this.department = department;
     }
 
-    public Long getId() {
-        return id;
+    public Integer getUserId() {
+        return userId;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setUserId(Integer userId) {
+        this.userId = userId;
     }
 
     public String getUsername() {
@@ -55,14 +77,6 @@ public class User {
         this.username = username;
     }
 
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
     public String getEmail() {
         return email;
     }
@@ -71,19 +85,55 @@ public class User {
         this.email = email;
     }
 
-    public String getRole() {
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public Role getRole() {
         return role;
     }
 
-    public void setRole(String role) {
+    public void setRole(Role role) {
         this.role = role;
     }
 
-    public String getDept() {
-        return dept;
+    public Department getDepartment() {
+        return department;
     }
 
-    public void setDept(String dept) {
-        this.dept = dept;
+    public void setDepartment(Department department) {
+        this.department = department;
+    }
+
+    public boolean isDeleted() {
+        return isDeleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        isDeleted = deleted;
+    }
+
+    public User getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(User createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
     }
 }

@@ -1,86 +1,122 @@
 package nusiss.ddas.app.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import nusiss.ddas.app.model.enums.DocumentStatus;
+import nusiss.ddas.app.model.enums.DocumentType;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "documents")
 public class Document {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer documentId;
+    @Column(name = "doc_id")
+    private Integer docId;
+
+    @Column(name = "doc_name", nullable = false)
+    private String docName;
+
+    @Column(name = "doc_type", nullable = false)
+    private DocumentType docType;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "uploader_id", nullable = false)
+    private User uploader;
+
+    @Column(name = "file_path", nullable = false, length = 512)
+    private String filePath;
+
+    @Column(name = "file_hash", nullable = false, length = 64)
+    private String fileHash;
 
     @Column(nullable = false)
-    private String documentType;
+    private DocumentStatus status = DocumentStatus.PENDING;
 
-    @Column(nullable = false)
-    private String uploader;
+    @Column(name = "is_deleted", nullable = false)
+    private boolean isDeleted = false;
 
-    @Column(nullable = false)
-    private String status;
-
-    @Column(name = "createdOn", nullable = false)
-    private LocalDateTime createdOn;
-
-    @Column(nullable = false)
-    private String documentName;
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
 
     public Document() {
     }
 
-    public Document(String documentType, String uploader, String status, LocalDateTime createdOn, String documentName) {
-        this.documentType = documentType;
+    public Document(String docName, DocumentType docType, User uploader, String filePath, String fileHash) {
+        this.docName = docName;
+        this.docType = docType;
         this.uploader = uploader;
-        this.status = status;
-        this.createdOn = createdOn;
-        this.documentName = documentName;
+        this.filePath = filePath;
+        this.fileHash = fileHash;
     }
 
-    public Integer getDocumentId() {
-        return documentId;
+    public Integer getDocId() {
+        return docId;
     }
 
-    public void setDocumentId(Integer documentId) {
-        this.documentId = documentId;
+    public void setDocId(Integer docId) {
+        this.docId = docId;
     }
 
-    public String getDocumentType() {
-        return documentType;
+    public String getDocName() {
+        return docName;
     }
 
-    public void setDocumentType(String documentType) {
-        this.documentType = documentType;
+    public void setDocName(String docName) {
+        this.docName = docName;
     }
 
-    public String getUploader() {
+    public DocumentType getDocType() {
+        return docType;
+    }
+
+    public void setDocType(DocumentType docType) {
+        this.docType = docType;
+    }
+
+    public User getUploader() {
         return uploader;
     }
 
-    public void setUploader(String uploader) {
+    public void setUploader(User uploader) {
         this.uploader = uploader;
     }
 
-    public String getStatus() {
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public String getFileHash() {
+        return fileHash;
+    }
+
+    public void setFileHash(String fileHash) {
+        this.fileHash = fileHash;
+    }
+
+    public DocumentStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(DocumentStatus status) {
         this.status = status;
     }
 
-    public LocalDateTime getCreatedOn() {
-        return createdOn;
+    public boolean isDeleted() {
+        return isDeleted;
     }
 
-    public void setCreatedOn(LocalDateTime createdOn) {
-        this.createdOn = createdOn;
+    public void setDeleted(boolean deleted) {
+        isDeleted = deleted;
     }
 
-    public String getDocumentName() {
-        return documentName;
-    }
-
-    public void setDocumentName(String documentName) {
-        this.documentName = documentName;
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
     }
 }

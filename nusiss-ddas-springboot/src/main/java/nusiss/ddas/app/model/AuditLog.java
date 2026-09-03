@@ -1,62 +1,71 @@
 package nusiss.ddas.app.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.OffsetDateTime;
+
+/**
+ * Rows are write-once: no setters are exposed and there is no is_deleted column,
+ * matching the audit log's immutability requirement.
+ */
 @Entity
 @Table(name = "audit_logs")
 public class AuditLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "audit_id")
     private Integer auditId;
 
-    @Column(name = "auditLogOn", nullable = false)
-    private LocalDateTime auditLogOn;
+    @ManyToOne
+    @JoinColumn(name = "action_performed_by")
+    private User actionPerformedBy;
 
-    @Column(name = "actionPerformedBy", nullable = false)
-    private String actionPerformedBy;
-
-    @Column(name = "actionPerformed", nullable = false)
+    @Column(name = "action_performed", nullable = false)
     private String actionPerformed;
+
+    @ManyToOne
+    @JoinColumn(name = "target_doc_id")
+    private Document targetDoc;
+
+    @Column(name = "ip_address", length = 45)
+    private String ipAddress;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
 
     public AuditLog() {
     }
 
-    public AuditLog(LocalDateTime auditLogOn, String actionPerformedBy, String actionPerformed) {
-        this.auditLogOn = auditLogOn;
+    public AuditLog(User actionPerformedBy, String actionPerformed, Document targetDoc, String ipAddress) {
         this.actionPerformedBy = actionPerformedBy;
         this.actionPerformed = actionPerformed;
+        this.targetDoc = targetDoc;
+        this.ipAddress = ipAddress;
     }
 
     public Integer getAuditId() {
         return auditId;
     }
 
-    public void setAuditId(Integer auditId) {
-        this.auditId = auditId;
-    }
-
-    public LocalDateTime getAuditLogOn() {
-        return auditLogOn;
-    }
-
-    public void setAuditLogOn(LocalDateTime auditLogOn) {
-        this.auditLogOn = auditLogOn;
-    }
-
-    public String getActionPerformedBy() {
+    public User getActionPerformedBy() {
         return actionPerformedBy;
-    }
-
-    public void setActionPerformedBy(String actionPerformedBy) {
-        this.actionPerformedBy = actionPerformedBy;
     }
 
     public String getActionPerformed() {
         return actionPerformed;
     }
 
-    public void setActionPerformed(String actionPerformed) {
-        this.actionPerformed = actionPerformed;
+    public Document getTargetDoc() {
+        return targetDoc;
+    }
+
+    public String getIpAddress() {
+        return ipAddress;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
     }
 }

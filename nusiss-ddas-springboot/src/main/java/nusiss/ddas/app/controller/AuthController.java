@@ -1,9 +1,16 @@
 package nusiss.ddas.app.controller;
 
-import nusiss.ddas.app.model.Approval;
+import jakarta.servlet.http.HttpServletRequest;
+import nusiss.ddas.app.model.AuditLog;
+import nusiss.ddas.app.model.Department;
 import nusiss.ddas.app.model.Document;
+import nusiss.ddas.app.model.DocumentApproval;
 import nusiss.ddas.app.model.User;
-import nusiss.ddas.app.repository.ApprovalRepository;
+import nusiss.ddas.app.model.enums.DocumentStatus;
+import nusiss.ddas.app.model.enums.Role;
+import nusiss.ddas.app.repository.AuditLogRepository;
+import nusiss.ddas.app.repository.DepartmentRepository;
+import nusiss.ddas.app.repository.DocumentApprovalRepository;
 import nusiss.ddas.app.repository.DocumentRepository;
 import nusiss.ddas.app.repository.UserRepository;
 import nusiss.ddas.app.service.UserService;
@@ -16,8 +23,8 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Controller
@@ -33,7 +40,13 @@ public class AuthController {
     private UserRepository userRepository;
 
     @Autowired
-    private ApprovalRepository approvalRepository;
+    private DepartmentRepository departmentRepository;
+
+    @Autowired
+    private DocumentApprovalRepository documentApprovalRepository;
+
+    @Autowired
+    private AuditLogRepository auditLogRepository;
 
     @GetMapping("/login")
     public String loginPage() {
@@ -64,22 +77,23 @@ public class AuthController {
         String username = auth.getName();
         User currentUser = userRepository.findByUsername(username).orElse(null);
 
-        List<Document> myDocuments = documentRepository.findByUploader(username);
+        List<Document> myDocuments = documentRepository.findByUploader(currentUser);
         model.addAttribute("myDocuments", myDocuments);
 
-        if (currentUser != null) {
-            List<User> deptUsers = userRepository.findByDept(currentUser.getDept());
-            List<String> deptUsernames = deptUsers.stream().map(User::getUsername).collect(Collectors.toList());
-            List<Document> deptDocuments = documentRepository.findByUploaderIn(deptUsernames).stream()
-                .filter(d -> !d.getUploader().equals(username)).collect(Collectors.toList());
+        if (currentUser != null && currentUser.getDepartment() != null) {
+            List<User> deptUsers = userRepository.findByDepartment(currentUser.getDepartment());
+            List<Document> deptDocuments = documentRepository.findByUploaderIn(deptUsers).stream()
+                .filter(d -> !d.getUploader().getUsername().equals(username)).collect(Collectors.toList());
             deptDocuments.sort((a, b) -> {
-                if ("PENDING".equals(a.getStatus()) && !"PENDING".equals(b.getStatus())) return -1;
-                if (!"PENDING".equals(a.getStatus()) && "PENDING".equals(b.getStatus())) return 1;
+                boolean aPending = a.getStatus() == DocumentStatus.PENDING;
+                boolean bPending = b.getStatus() == DocumentStatus.PENDING;
+                if (aPending && !bPending) return -1;
+                if (!aPending && bPending) return 1;
                 return 0;
             });
             model.addAttribute("deptDocuments", deptDocuments);
-            model.addAttribute("userRole", currentUser.getRole());
-            model.addAttribute("userDept", currentUser.getDept());
+            model.addAttribute("userRole", currentUser.getRole().name());
+            model.addAttribute("userDept", currentUser.getDepartment().getDeptName());
         }
 
         List<User> allUsers = userRepository.findAll();
@@ -93,56 +107,70 @@ public class AuthController {
     public String reviewDocument(@RequestParam Integer documentId,
                                  @RequestParam String action,
                                  @RequestParam(defaultValue = "requestManagement") String mode,
-                                 Authentication auth) {
+                                 Authentication auth,
+                                 HttpServletRequest request) {
         Document doc = documentRepository.findById(documentId).orElse(null);
-        if (doc != null) {
-            if ("APPROVE".equals(action)) doc.setStatus("APPROVED");
-            else if ("REJECT".equals(action)) doc.setStatus("REJECTED");
-            else if ("REVIEW".equals(action)) doc.setStatus("REVIEWING");
-            documentRepository.save(doc);
+        User actor = userRepository.findByUsername(auth.getName()).orElse(null);
+        if (doc != null && actor != null) {
+            String actionLabel;
+            if ("APPROVE".equals(action)) {
+                doc.setStatus(DocumentStatus.APPROVED);
+                documentRepository.save(doc);
 
-            Approval approval = new Approval();
-            approval.setDocumentId(documentId);
-            approval.setApprover(auth.getName());
-            approval.setSignature("1111".getBytes());
-            approval.setCreatedOn(LocalDateTime.now());
-            approvalRepository.save(approval);
+                // TODO: replace with a real HashiCorp Vault transit signature once Vault is wired up.
+                String signatureValue = "PLACEHOLDER-SIGNATURE:" + UUID.randomUUID();
+                DocumentApproval approval = new DocumentApproval(doc, actor, signatureValue, doc.getFileHash());
+                documentApprovalRepository.save(approval);
+                actionLabel = "APPROVED document #" + documentId;
+            } else if ("REJECT".equals(action)) {
+                doc.setStatus(DocumentStatus.REJECTED);
+                documentRepository.save(doc);
+                actionLabel = "REJECTED document #" + documentId;
+            } else {
+                doc.setStatus(DocumentStatus.REVIEWING);
+                documentRepository.save(doc);
+                actionLabel = "MARKED REVIEWING document #" + documentId;
+            }
+
+            auditLogRepository.save(new AuditLog(actor, actionLabel, doc, request.getRemoteAddr()));
         }
         return "redirect:/home?mode=" + mode;
     }
 
     @PostMapping("/updateRole")
-    public String updateRole(@RequestParam Long userId, @RequestParam String role,
+    public String updateRole(@RequestParam Integer userId, @RequestParam String role,
                              @RequestParam(defaultValue = "myDocuments") String mode) {
         User user = userRepository.findById(userId).orElse(null);
         if (user != null) {
-            user.setRole(role);
+            user.setRole(Role.valueOf(role));
             userRepository.save(user);
         }
         return "redirect:/home?mode=" + mode;
     }
 
     @PostMapping("/updateDept")
-    public String updateDept(@RequestParam Long userId, @RequestParam String dept,
+    public String updateDept(@RequestParam Integer userId, @RequestParam String dept,
                              @RequestParam(defaultValue = "myDocuments") String mode) {
         User user = userRepository.findById(userId).orElse(null);
-        if (user != null) {
-            user.setDept(dept);
+        Department department = departmentRepository.findByDeptName(dept).orElse(null);
+        if (user != null && department != null) {
+            user.setDepartment(department);
             userRepository.save(user);
         }
         return "redirect:/home?mode=" + mode;
     }
 
     @PostMapping("/bulkUpdateUsers")
-    public String bulkUpdateUsers(@RequestParam("userId") Long[] userId,
+    public String bulkUpdateUsers(@RequestParam("userId") Integer[] userId,
                                   @RequestParam("role") String[] role,
                                   @RequestParam("dept") String[] dept,
                                   @RequestParam(defaultValue = "myDocuments") String mode) {
         for (int i = 0; i < userId.length; i++) {
             User user = userRepository.findById(userId[i]).orElse(null);
-            if (user != null) {
-                user.setRole(role[i]);
-                user.setDept(dept[i]);
+            Department department = departmentRepository.findByDeptName(dept[i]).orElse(null);
+            if (user != null && department != null) {
+                user.setRole(Role.valueOf(role[i]));
+                user.setDepartment(department);
                 userRepository.save(user);
             }
         }

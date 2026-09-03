@@ -13,7 +13,7 @@
             
             <div class="mode-buttons">
                 <button class="mode-btn" data-mode="myDocuments" th:classappend="${activeMode == 'myDocuments'} ? ' active' : ''" onclick="switchMode('myDocuments', this)">My Documents</button>
-                <button class="mode-btn" data-mode="requestManagement" th:if="${userRole == 'MANAGER'}" th:classappend="${activeMode == 'requestManagement'} ? ' active' : ''" onclick="switchMode('requestManagement', this)">Request Management</button>
+                <button class="mode-btn" data-mode="requestManagement" th:if="${userRole == 'APPROVER'}" th:classappend="${activeMode == 'requestManagement'} ? ' active' : ''" onclick="switchMode('requestManagement', this)">Request Management</button>
                 <button class="mode-btn" data-mode="userManagement" th:if="${userRole == 'ADMIN'}" th:classappend="${activeMode == 'userManagement'} ? ' active' : ''" onclick="switchMode('userManagement', this)">User Management</button>
             </div>
             
@@ -32,12 +32,12 @@
                     </thead>
                     <tbody>
                         <tr th:each="doc : ${myDocuments}">
-                            <td th:text="${doc.documentId}"></td>
-                            <td th:text="${doc.documentName}"></td>
-                            <td th:text="${doc.documentType}"></td>
-                            <td th:text="${doc.uploader}"></td>
+                            <td th:text="${doc.docId}"></td>
+                            <td th:text="${doc.docName}"></td>
+                            <td th:text="${doc.docType}"></td>
+                            <td th:text="${doc.uploader.username}"></td>
                             <td th:text="${doc.status}"></td>
-                            <td th:text="${#temporals.format(doc.createdOn, 'yyyy-MM-dd HH:mm:ss')}"></td>
+                            <td th:text="${#temporals.format(doc.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></td>
                         </tr>
                     </tbody>
                 </table>
@@ -62,20 +62,20 @@
                         </thead>
                         <tbody>
                             <tr th:each="doc : ${deptDocuments}">
-                                <td th:text="${doc.documentId}"></td>
-                                <td th:text="${doc.documentName}"></td>
-                                <td th:text="${doc.documentType}"></td>
-                                <td th:text="${doc.uploader}"></td>
+                                <td th:text="${doc.docId}"></td>
+                                <td th:text="${doc.docName}"></td>
+                                <td th:text="${doc.docType}"></td>
+                                <td th:text="${doc.uploader.username}"></td>
                                 <td th:text="${doc.status}"></td>
-                                <td th:text="${#temporals.format(doc.createdOn, 'yyyy-MM-dd HH:mm:ss')}"></td>
+                                <td th:text="${#temporals.format(doc.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></td>
                                 <td>
-                                    <span th:if="${doc.status == 'PENDING'}" th:id="'status_' + ${doc.documentId}" th:text="${doc.status}"></span>
-                                    <select th:if="${doc.status == 'PENDING'}" th:id="'action_' + ${doc.documentId}" style="display:none;">
+                                    <span th:if="${doc.status.name() == 'PENDING'}" th:id="'status_' + ${doc.docId}" th:text="${doc.status}"></span>
+                                    <select th:if="${doc.status.name() == 'PENDING'}" th:id="'action_' + ${doc.docId}" style="display:none;">
                                         <option value="REVIEW" selected>REVIEW</option>
                                         <option value="APPROVE">APPROVE</option>
                                         <option value="REJECT">REJECT</option>
                                     </select>
-                                    <span th:if="${doc.status != 'PENDING'}" th:text="${doc.status}"></span>
+                                    <span th:if="${doc.status.name() != 'PENDING'}" th:text="${doc.status}"></span>
                                 </td>
                             </tr>
                         </tbody>
@@ -105,19 +105,19 @@
                                 <td th:text="${user.username}"></td>
                                 <td th:text="${user.email}"></td>
                                 <td>
-                                    <span th:id="'roleSpan_' + ${user.id}" th:text="${user.role}"></span>
-                                    <select th:id="'role_' + ${user.id}" style="display:none;">
-                                        <option value="USER" th:selected="${user.role == 'USER'}">USER</option>
-                                        <option value="ADMIN" th:selected="${user.role == 'ADMIN'}">ADMIN</option>
-                                        <option value="MANAGER" th:selected="${user.role == 'MANAGER'}">MANAGER</option>
+                                    <span th:id="'roleSpan_' + ${user.userId}" th:text="${user.role}"></span>
+                                    <select th:id="'role_' + ${user.userId}" style="display:none;">
+                                        <option value="USER" th:selected="${user.role.name() == 'USER'}">USER</option>
+                                        <option value="ADMIN" th:selected="${user.role.name() == 'ADMIN'}">ADMIN</option>
+                                        <option value="APPROVER" th:selected="${user.role.name() == 'APPROVER'}">APPROVER</option>
                                     </select>
                                 </td>
                                 <td>
-                                    <span th:id="'deptSpan_' + ${user.id}" th:text="${user.dept}"></span>
-                                    <select th:id="'dept_' + ${user.id}" style="display:none;">
-                                        <option value="IT" th:selected="${user.dept == 'IT'}">IT</option>
-                                        <option value="CS" th:selected="${user.dept == 'CS'}">CS</option>
-                                        <option value="OTHER" th:selected="${user.dept == 'OTHER'}">OTHER</option>
+                                    <span th:id="'deptSpan_' + ${user.userId}" th:text="${user.department != null ? user.department.deptName : ''}"></span>
+                                    <select th:id="'dept_' + ${user.userId}" style="display:none;">
+                                        <option value="IT" th:selected="${user.department != null and user.department.deptName == 'IT'}">IT</option>
+                                        <option value="CS" th:selected="${user.department != null and user.department.deptName == 'CS'}">CS</option>
+                                        <option value="OTHER" th:selected="${user.department != null and user.department.deptName == 'OTHER'}">OTHER</option>
                                     </select>
                                 </td>
                             </tr>
