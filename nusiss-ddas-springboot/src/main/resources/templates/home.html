@@ -18,7 +18,15 @@
             </div>
             
             <div id="myDocumentsSection" class="mode-section">
-                <h3>My Documents</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin-bottom: 0;">My Documents</h3>
+                    <a th:href="@{/uploadDocument}" class="quick-upload-link">Upload Document</a>
+                </div>
+
+                <div th:if="${success}" class="success-message">
+                    <span th:text="${success}"></span>
+                </div>
+
                 <table th:if="${myDocuments != null and !myDocuments.isEmpty()}">
                     <thead>
                         <tr>
@@ -27,6 +35,7 @@
                             <th>Type</th>
                             <th>Uploader</th>
                             <th>Status</th>
+                            <th>Size</th>
                             <th>Created On</th>
                         </tr>
                     </thead>
@@ -37,6 +46,7 @@
                             <td th:text="${doc.docType}"></td>
                             <td th:text="${doc.uploader.username}"></td>
                             <td th:text="${doc.status}"></td>
+                            <td th:text="${#numbers.formatDecimal(doc.fileSize / 1024.0, 0, 1)} + ' KB'"></td>
                             <td th:text="${#temporals.format(doc.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></td>
                         </tr>
                     </tbody>

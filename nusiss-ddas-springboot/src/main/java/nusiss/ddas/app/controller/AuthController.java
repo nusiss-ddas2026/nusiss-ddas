@@ -1,18 +1,21 @@
 package nusiss.ddas.app.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import nusiss.ddas.app.exception.InvalidFileException;
 import nusiss.ddas.app.model.AuditLog;
 import nusiss.ddas.app.model.Department;
 import nusiss.ddas.app.model.Document;
 import nusiss.ddas.app.model.DocumentApproval;
 import nusiss.ddas.app.model.User;
 import nusiss.ddas.app.model.enums.DocumentStatus;
+import nusiss.ddas.app.model.enums.DocumentType;
 import nusiss.ddas.app.model.enums.Role;
 import nusiss.ddas.app.repository.AuditLogRepository;
 import nusiss.ddas.app.repository.DepartmentRepository;
 import nusiss.ddas.app.repository.DocumentApprovalRepository;
 import nusiss.ddas.app.repository.DocumentRepository;
 import nusiss.ddas.app.repository.UserRepository;
+import nusiss.ddas.app.service.FileStorageService;
 import nusiss.ddas.app.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -22,6 +25,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
 import java.util.UUID;
@@ -47,6 +52,9 @@ public class AuthController {
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private FileStorageService fileStorageService;
 
     @GetMapping("/login")
     public String loginPage() {
@@ -101,6 +109,40 @@ public class AuthController {
         model.addAttribute("username", username);
         model.addAttribute("activeMode", mode != null ? mode : "myDocuments");
         return "home";
+    }
+
+    @GetMapping("/uploadDocument")
+    public String uploadDocumentPage() {
+        return "upload";
+    }
+
+    @PostMapping("/uploadDocument")
+    public String uploadDocument(@RequestParam String docName,
+                                 @RequestParam String docType,
+                                 @RequestParam("file") MultipartFile file,
+                                 Authentication auth,
+                                 HttpServletRequest request,
+                                 RedirectAttributes redirectAttributes) {
+        User uploader = userRepository.findByUsername(auth.getName()).orElse(null);
+        try {
+            DocumentType type = DocumentType.valueOf(docType);
+            FileStorageService.StoredFile stored = fileStorageService.store(file);
+
+            Document doc = new Document(docName, type, uploader, stored.filePath(), stored.fileHash(),
+                                         stored.size(), stored.contentType());
+            documentRepository.save(doc);
+
+            auditLogRepository.save(new AuditLog(uploader, "UPLOADED document #" + doc.getDocId(),
+                                                  doc, request.getRemoteAddr()));
+
+            redirectAttributes.addFlashAttribute("success", "Document uploaded successfully.");
+            return "redirect:/home?mode=myDocuments";
+        } catch (InvalidFileException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", "Invalid document type selected.");
+        }
+        return "redirect:/uploadDocument";
     }
 
     @PostMapping("/reviewDocument")

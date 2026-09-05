@@ -83,6 +83,17 @@ input:focus {
     padding: 12px 40px;
 }
 
+.quick-upload-link {
+    color: #667eea;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.quick-upload-link:hover {
+    text-decoration: underline;
+}
+
 .btn-logout {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     margin-top: 20px;

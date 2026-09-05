@@ -31,6 +31,12 @@ public class Document {
     @Column(name = "file_hash", nullable = false, length = 64)
     private String fileHash;
 
+    @Column(name = "file_size", nullable = false)
+    private long fileSize;
+
+    @Column(name = "content_type", nullable = false, length = 100)
+    private String contentType;
+
     @Column(nullable = false)
     private DocumentStatus status = DocumentStatus.PENDING;
 
@@ -50,6 +56,13 @@ public class Document {
         this.uploader = uploader;
         this.filePath = filePath;
         this.fileHash = fileHash;
+    }
+
+    public Document(String docName, DocumentType docType, User uploader, String filePath, String fileHash,
+                     long fileSize, String contentType) {
+        this(docName, docType, uploader, filePath, fileHash);
+        this.fileSize = fileSize;
+        this.contentType = contentType;
     }
 
     public Integer getDocId() {
@@ -98,6 +111,22 @@ public class Document {
 
     public void setFileHash(String fileHash) {
         this.fileHash = fileHash;
+    }
+
+    public long getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
     }
 
     public DocumentStatus getStatus() {

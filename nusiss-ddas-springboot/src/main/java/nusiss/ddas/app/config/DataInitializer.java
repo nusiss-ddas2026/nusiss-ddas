@@ -102,6 +102,6 @@ public class DataInitializer {
         Files.write(filePath, bytes);
 
         String fileHash = FileHashUtil.sha256Hex(bytes);
-        return new Document(docName, docType, uploader, filePath.toString(), fileHash);
+        return new Document(docName, docType, uploader, filePath.toString(), fileHash, bytes.length, "text/plain");
     }
 }
