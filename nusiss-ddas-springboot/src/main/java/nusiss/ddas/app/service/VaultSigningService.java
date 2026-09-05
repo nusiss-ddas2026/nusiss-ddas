@@ -1,6 +1,7 @@
 package nusiss.ddas.app.service;
 
 import jakarta.annotation.PostConstruct;
+import nusiss.ddas.app.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import org.springframework.vault.support.VaultTransitKeyCreationRequest;
 import org.springframework.web.client.RestClientException;
 
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
 
 @Service
 public class VaultSigningService {
@@ -22,12 +24,13 @@ public class VaultSigningService {
     private static final Logger log = LoggerFactory.getLogger(VaultSigningService.class);
     private static final String TRANSIT_MOUNT_PATH = "transit";
     private static final String TRANSIT_KEY_TYPE = "rsa-2048";
+    private static final Pattern UNSAFE_KEY_NAME_CHARS = Pattern.compile("[^a-zA-Z0-9_-]");
 
     @Autowired
     private VaultTemplate vaultTemplate;
 
-    @Value("${app.vault.transit.key-name}")
-    private String transitKeyName;
+    @Value("${app.vault.transit.key-name-prefix}")
+    private String transitKeyNamePrefix;
 
     @PostConstruct
     public void initTransitBackend() {
@@ -39,11 +42,6 @@ public class VaultSigningService {
             if (!transitMounted) {
                 vaultTemplate.opsForSys().mount(TRANSIT_MOUNT_PATH, VaultMount.create(TRANSIT_MOUNT_PATH));
             }
-
-            if (vaultTemplate.opsForTransit().getKey(transitKeyName) == null) {
-                vaultTemplate.opsForTransit().createKey(
-                    transitKeyName, VaultTransitKeyCreationRequest.ofKeyType(TRANSIT_KEY_TYPE));
-            }
         } catch (VaultException | RestClientException e) {
             log.warn("Could not initialize Vault transit backend at startup; "
                 + "document approval/signing will fail until this is resolved.", e);
@@ -51,14 +49,44 @@ public class VaultSigningService {
     }
 
     /**
-     * Signs the given SHA-256 hex digest string using this app's Vault transit
-     * key. The hex string's UTF-8 bytes are what gets signed (Vault base64-encodes
-     * them on the wire internally — callers must not pre-encode). Returns Vault's
-     * own signature format, e.g. "vault:v1:MEUCIQ...".
+     * Replaces every character outside [a-zA-Z0-9_-] with "_" so a username is
+     * safe to use as a Vault transit key name (a literal URL path segment).
+     * Not collision-resistant: two different usernames that differ only in a
+     * replaced character (e.g. "bob smith" and "bob_smith") sanitize to the
+     * same key name and would share a signing key. Accepted limitation for
+     * this project — usernames are unique at the DB level, but sanitized
+     * collisions between two distinct usernames aren't detected or prevented.
      */
-    public String sign(String hashHex) {
+    private String sanitizeForKeyName(String username) {
+        return UNSAFE_KEY_NAME_CHARS.matcher(username).replaceAll("_");
+    }
+
+    private String keyNameFor(User approver) {
+        return transitKeyNamePrefix + "-" + sanitizeForKeyName(approver.getUsername());
+    }
+
+    private void ensureKeyExists(String keyName) {
+        if (vaultTemplate.opsForTransit().getKey(keyName) == null) {
+            vaultTemplate.opsForTransit().createKey(
+                keyName, VaultTransitKeyCreationRequest.ofKeyType(TRANSIT_KEY_TYPE));
+        }
+    }
+
+    public record SignedResult(String signatureValue, String keyName) {}
+
+    /**
+     * Signs the given SHA-256 hex digest string using the given approver's own
+     * Vault transit key, creating that key on first use if it doesn't exist
+     * yet. The hex string's UTF-8 bytes are what gets signed (Vault
+     * base64-encodes them on the wire internally — callers must not
+     * pre-encode). Returns Vault's own signature format (e.g.
+     * "vault:v1:MEUCIQ...") together with the exact key name used.
+     */
+    public SignedResult sign(User approver, String hashHex) {
+        String keyName = keyNameFor(approver);
+        ensureKeyExists(keyName);
         Plaintext plaintext = Plaintext.of(hashHex, StandardCharsets.UTF_8);
-        Signature signature = vaultTemplate.opsForTransit().sign(transitKeyName, plaintext);
-        return signature.getSignature();
+        Signature signature = vaultTemplate.opsForTransit().sign(keyName, plaintext);
+        return new SignedResult(signature.getSignature(), keyName);
     }
 }

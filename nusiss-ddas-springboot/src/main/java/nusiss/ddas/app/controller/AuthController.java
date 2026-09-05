@@ -189,9 +189,9 @@ public class AuthController {
                     return "redirect:/home?mode=" + mode;
                 }
 
-                String signatureValue;
+                VaultSigningService.SignedResult signedResult;
                 try {
-                    signatureValue = vaultSigningService.sign(currentHash);
+                    signedResult = vaultSigningService.sign(actor, currentHash);
                 } catch (VaultException | RestClientException e) {
                     auditLogRepository.save(new AuditLog(actor,
                         "FAILED to approve document #" + documentId + ": signing service unavailable",
@@ -204,7 +204,8 @@ public class AuthController {
 
                 doc.setStatus(DocumentStatus.APPROVED);
                 documentRepository.save(doc);
-                documentApprovalRepository.save(new DocumentApproval(doc, actor, signatureValue, currentHash));
+                documentApprovalRepository.save(new DocumentApproval(
+                    doc, actor, signedResult.signatureValue(), currentHash, signedResult.keyName()));
                 redirectAttributes.addFlashAttribute("success", "Document approved and digitally signed.");
                 actionLabel = "APPROVED document #" + documentId;
             } else if ("REJECT".equals(action)) {

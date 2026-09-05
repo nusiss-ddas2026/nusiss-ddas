@@ -17,7 +17,6 @@ import java.util.UUID;
 @Service
 public class FileStorageService {
 
-    // Extension -> the exact MIME type(s) a browser should have declared for it.
     private static final Map<String, Set<String>> ALLOWED_CONTENT_TYPES_BY_EXT = Map.of(
         "pdf",  Set.of("application/pdf"),
         "doc",  Set.of("application/msword"),
@@ -34,12 +33,6 @@ public class FileStorageService {
         if (file == null || file.isEmpty()) {
             throw new InvalidFileException("Please choose a file to upload.");
         }
-
-        // File size is deliberately NOT re-checked here. Spring's multipart config
-        // (spring.servlet.multipart.max-file-size / max-request-size in
-        // application.properties) already rejects oversized uploads before this
-        // method is ever reached, via MaxUploadSizeExceededException (handled by
-        // GlobalExceptionHandler).
 
         String originalFilename = StringUtils.cleanPath(
             file.getOriginalFilename() == null ? "" : file.getOriginalFilename());
@@ -66,10 +59,6 @@ public class FileStorageService {
             throw new InvalidFileException("Could not read the uploaded file. Please try again.");
         }
 
-        // Content-sniff via magic bytes: the extension and Content-Type header are
-        // both attacker-controlled (a client can rename any file and set any
-        // Content-Type). This is the one signal that actually reflects the bytes
-        // on disk.
         if (!matchesMagicBytes(extension, bytes)) {
             throw new InvalidFileException(
                 "The file's content does not match its extension. Only genuine PDF, DOC, DOCX, "
@@ -79,8 +68,6 @@ public class FileStorageService {
         try {
             Path dir = Path.of(uploadDir);
             Files.createDirectories(dir);
-            // Server-generated filename: never derived from user input, so there is
-            // no path-traversal or overwrite risk from a crafted "originalFilename".
             String storedFilename = UUID.randomUUID() + "." + extension;
             Path destination = dir.resolve(storedFilename);
             Files.write(destination, bytes);
@@ -102,11 +89,11 @@ public class FileStorageService {
 
     private boolean matchesMagicBytes(String extension, byte[] bytes) {
         return switch (extension) {
-            case "pdf"  -> startsWith(bytes, 0x25, 0x50, 0x44, 0x46);       // %PDF
+            case "pdf"  -> startsWith(bytes, 0x25, 0x50, 0x44, 0x46);
             case "png"  -> startsWith(bytes, 0x89, 0x50, 0x4E, 0x47);
             case "jpg", "jpeg" -> startsWith(bytes, 0xFF, 0xD8, 0xFF);
-            case "docx" -> startsWith(bytes, 0x50, 0x4B, 0x03, 0x04);       // ZIP/OOXML container
-            case "doc"  -> startsWith(bytes, 0xD0, 0xCF, 0x11, 0xE0);       // OLE compound file
+            case "docx" -> startsWith(bytes, 0x50, 0x4B, 0x03, 0x04);
+            case "doc"  -> startsWith(bytes, 0xD0, 0xCF, 0x11, 0xE0);
             default -> false;
         };
     }

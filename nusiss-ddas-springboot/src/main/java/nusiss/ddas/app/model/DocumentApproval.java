@@ -27,6 +27,9 @@ public class DocumentApproval {
     @Column(name = "signed_doc_hash", nullable = false, length = 64)
     private String signedDocHash;
 
+    @Column(name = "signing_key_name", nullable = false, length = 255)
+    private String signingKeyName;
+
     @Column(name = "is_deleted", nullable = false)
     private boolean isDeleted = false;
 
@@ -37,11 +40,13 @@ public class DocumentApproval {
     public DocumentApproval() {
     }
 
-    public DocumentApproval(Document document, User approver, String signatureValue, String signedDocHash) {
+    public DocumentApproval(Document document, User approver, String signatureValue,
+                             String signedDocHash, String signingKeyName) {
         this.document = document;
         this.approver = approver;
         this.signatureValue = signatureValue;
         this.signedDocHash = signedDocHash;
+        this.signingKeyName = signingKeyName;
     }
 
     public Integer getApprovalId() {
@@ -82,6 +87,14 @@ public class DocumentApproval {
 
     public void setSignedDocHash(String signedDocHash) {
         this.signedDocHash = signedDocHash;
+    }
+
+    public String getSigningKeyName() {
+        return signingKeyName;
+    }
+
+    public void setSigningKeyName(String signingKeyName) {
+        this.signingKeyName = signingKeyName;
     }
 
     public boolean isDeleted() {
