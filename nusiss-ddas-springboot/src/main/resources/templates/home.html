@@ -56,6 +56,14 @@
             
             <div id="requestManagementSection" class="mode-section" style="display: none;">
                 <h3>Request Management</h3>
+
+                <div th:if="${error}" class="error-message">
+                    <span th:text="${error}"></span>
+                </div>
+                <div th:if="${success}" class="success-message">
+                    <span th:text="${success}"></span>
+                </div>
+
                 <form id="requestForm" th:action="@{/reviewDocument}" method="post">
                     <input type="hidden" name="mode" th:value="${activeMode}">
                     <table th:if="${deptDocuments != null and !deptDocuments.isEmpty()}">

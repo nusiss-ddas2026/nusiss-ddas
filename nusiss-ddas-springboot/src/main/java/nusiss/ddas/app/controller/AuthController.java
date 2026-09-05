@@ -17,19 +17,25 @@ import nusiss.ddas.app.repository.DocumentRepository;
 import nusiss.ddas.app.repository.UserRepository;
 import nusiss.ddas.app.service.FileStorageService;
 import nusiss.ddas.app.service.UserService;
+import nusiss.ddas.app.service.VaultSigningService;
+import nusiss.ddas.app.util.FileHashUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.vault.VaultException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Controller
@@ -55,6 +61,9 @@ public class AuthController {
 
     @Autowired
     private FileStorageService fileStorageService;
+
+    @Autowired
+    private VaultSigningService vaultSigningService;
 
     @GetMapping("/login")
     public String loginPage() {
@@ -150,19 +159,53 @@ public class AuthController {
                                  @RequestParam String action,
                                  @RequestParam(defaultValue = "requestManagement") String mode,
                                  Authentication auth,
-                                 HttpServletRequest request) {
+                                 HttpServletRequest request,
+                                 RedirectAttributes redirectAttributes) {
         Document doc = documentRepository.findById(documentId).orElse(null);
         User actor = userRepository.findByUsername(auth.getName()).orElse(null);
         if (doc != null && actor != null) {
             String actionLabel;
             if ("APPROVE".equals(action)) {
+                byte[] currentBytes;
+                try {
+                    currentBytes = Files.readAllBytes(Path.of(doc.getFilePath()));
+                } catch (IOException e) {
+                    auditLogRepository.save(new AuditLog(actor,
+                        "FAILED to approve document #" + documentId + ": could not read file from storage",
+                        doc, request.getRemoteAddr()));
+                    redirectAttributes.addFlashAttribute("error",
+                        "Could not read the document file from storage. Approval was not recorded.");
+                    return "redirect:/home?mode=" + mode;
+                }
+
+                String currentHash = FileHashUtil.sha256Hex(currentBytes);
+                if (!currentHash.equals(doc.getFileHash())) {
+                    auditLogRepository.save(new AuditLog(actor,
+                        "FAILED to approve document #" + documentId + ": file hash mismatch (possible tampering)",
+                        doc, request.getRemoteAddr()));
+                    redirectAttributes.addFlashAttribute("error",
+                        "This document's file has changed since it was uploaded and could not be verified. "
+                        + "Approval was not recorded.");
+                    return "redirect:/home?mode=" + mode;
+                }
+
+                String signatureValue;
+                try {
+                    signatureValue = vaultSigningService.sign(currentHash);
+                } catch (VaultException | RestClientException e) {
+                    auditLogRepository.save(new AuditLog(actor,
+                        "FAILED to approve document #" + documentId + ": signing service unavailable",
+                        doc, request.getRemoteAddr()));
+                    redirectAttributes.addFlashAttribute("error",
+                        "The digital signature service is currently unavailable. Please try again shortly. "
+                        + "Approval was not recorded.");
+                    return "redirect:/home?mode=" + mode;
+                }
+
                 doc.setStatus(DocumentStatus.APPROVED);
                 documentRepository.save(doc);
-
-                // TODO: replace with a real HashiCorp Vault transit signature once Vault is wired up.
-                String signatureValue = "PLACEHOLDER-SIGNATURE:" + UUID.randomUUID();
-                DocumentApproval approval = new DocumentApproval(doc, actor, signatureValue, doc.getFileHash());
-                documentApprovalRepository.save(approval);
+                documentApprovalRepository.save(new DocumentApproval(doc, actor, signatureValue, currentHash));
+                redirectAttributes.addFlashAttribute("success", "Document approved and digitally signed.");
                 actionLabel = "APPROVED document #" + documentId;
             } else if ("REJECT".equals(action)) {
                 doc.setStatus(DocumentStatus.REJECTED);
