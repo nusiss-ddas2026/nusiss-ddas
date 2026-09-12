@@ -89,4 +89,17 @@ public class VaultSigningService {
         Signature signature = vaultTemplate.opsForTransit().sign(keyName, plaintext);
         return new SignedResult(signature.getSignature(), keyName);
     }
+
+    /**
+     * Verifies that signatureValue is a genuine signature over hashHex produced by the
+     * transit key named keyName — false if the signature was forged, corrupted, or
+     * produced by a different key (e.g. a different approver's key than the one on
+     * record for this approval). keyName should come from the stored
+     * DocumentApproval.signingKeyName rather than being re-derived from a username,
+     * so verification checks against the exact key that was actually used to sign.
+     */
+    public boolean verify(String keyName, String hashHex, String signatureValue) {
+        Plaintext plaintext = Plaintext.of(hashHex, StandardCharsets.UTF_8);
+        return vaultTemplate.opsForTransit().verify(keyName, plaintext, Signature.of(signatureValue));
+    }
 }

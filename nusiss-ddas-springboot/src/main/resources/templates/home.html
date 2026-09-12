@@ -26,6 +26,9 @@
                 <div th:if="${success}" class="success-message">
                     <span th:text="${success}"></span>
                 </div>
+                <div th:if="${error}" class="error-message">
+                    <span th:text="${error}"></span>
+                </div>
 
                 <table th:if="${myDocuments != null and !myDocuments.isEmpty()}">
                     <thead>
@@ -37,6 +40,7 @@
                             <th>Status</th>
                             <th>Size</th>
                             <th>Created On</th>
+                            <th>Integrity</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -48,6 +52,13 @@
                             <td th:text="${doc.status}"></td>
                             <td th:text="${#numbers.formatDecimal(doc.fileSize / 1024.0, 0, 1)} + ' KB'"></td>
                             <td th:text="${#temporals.format(doc.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></td>
+                            <td>
+                                <form th:if="${doc.status.name() == 'APPROVED'}" th:action="@{/verifyDocument}" method="post" style="display:inline;">
+                                    <input type="hidden" name="documentId" th:value="${doc.docId}">
+                                    <input type="hidden" name="mode" value="myDocuments">
+                                    <button type="submit" class="btn-save">Verify</button>
+                                </form>
+                            </td>
                         </tr>
                     </tbody>
                 </table>

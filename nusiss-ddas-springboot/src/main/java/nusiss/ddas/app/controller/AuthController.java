@@ -223,6 +223,75 @@ public class AuthController {
         return "redirect:/home?mode=" + mode;
     }
 
+    /**
+     * On-demand re-check of an approved document's signature: does the file on disk
+     * still match the hash that was signed, and is the recorded signature a genuine
+     * Vault signature over that hash from the specific key on record for this
+     * approval (not just any key). Either failing means the approval can no longer
+     * be trusted, even though the document's status still shows APPROVED.
+     */
+    @PostMapping("/verifyDocument")
+    public String verifyDocument(@RequestParam Integer documentId,
+                                 @RequestParam(defaultValue = "myDocuments") String mode,
+                                 Authentication auth,
+                                 HttpServletRequest request,
+                                 RedirectAttributes redirectAttributes) {
+        Document doc = documentRepository.findById(documentId).orElse(null);
+        User actor = userRepository.findByUsername(auth.getName()).orElse(null);
+        if (doc != null && actor != null) {
+            List<DocumentApproval> approvals = documentApprovalRepository.findByDocumentOrderByCreatedAtDesc(doc);
+            if (approvals.isEmpty()) {
+                redirectAttributes.addFlashAttribute("error",
+                    "No approval signature is on record for this document.");
+                auditLogRepository.save(new AuditLog(actor,
+                    "VERIFY SKIPPED - no approval signature recorded for document #" + documentId,
+                    doc, request.getRemoteAddr()));
+                return "redirect:/home?mode=" + mode;
+            }
+
+            DocumentApproval approval = approvals.get(0);
+            boolean fileUnchanged;
+            try {
+                byte[] currentBytes = Files.readAllBytes(Path.of(doc.getFilePath()));
+                fileUnchanged = FileHashUtil.sha256Hex(currentBytes).equals(approval.getSignedDocHash());
+            } catch (IOException e) {
+                redirectAttributes.addFlashAttribute("error",
+                    "Could not read the document file from storage. Verification was not completed.");
+                auditLogRepository.save(new AuditLog(actor,
+                    "VERIFY ERROR - could not read file for document #" + documentId, doc, request.getRemoteAddr()));
+                return "redirect:/home?mode=" + mode;
+            }
+
+            boolean signatureValid;
+            try {
+                signatureValid = vaultSigningService.verify(
+                    approval.getSigningKeyName(), approval.getSignedDocHash(), approval.getSignatureValue());
+            } catch (VaultException | RestClientException e) {
+                redirectAttributes.addFlashAttribute("error",
+                    "The digital signature service is currently unavailable. Please try again shortly.");
+                auditLogRepository.save(new AuditLog(actor,
+                    "VERIFY ERROR - signing service unavailable for document #" + documentId,
+                    doc, request.getRemoteAddr()));
+                return "redirect:/home?mode=" + mode;
+            }
+
+            String resultLabel;
+            if (fileUnchanged && signatureValid) {
+                redirectAttributes.addFlashAttribute("success",
+                    "Signature valid and file unchanged since approval.");
+                resultLabel = "VERIFY OK - signature valid and file unchanged since approval for document #" + documentId;
+            } else {
+                redirectAttributes.addFlashAttribute("error",
+                    "Verification FAILED (fileUnchanged=" + fileUnchanged + ", signatureValid=" + signatureValid
+                    + "). This document can no longer be trusted as approved.");
+                resultLabel = "VERIFY FAILED (fileUnchanged=" + fileUnchanged + ", signatureValid=" + signatureValid
+                    + ") for document #" + documentId;
+            }
+            auditLogRepository.save(new AuditLog(actor, resultLabel, doc, request.getRemoteAddr()));
+        }
+        return "redirect:/home?mode=" + mode;
+    }
+
     @PostMapping("/updateRole")
     public String updateRole(@RequestParam Integer userId, @RequestParam String role,
                              @RequestParam(defaultValue = "myDocuments") String mode) {
