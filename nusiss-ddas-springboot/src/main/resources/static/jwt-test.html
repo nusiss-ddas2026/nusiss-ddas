@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JWT Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        .section { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; }
+        input, button { padding: 8px; margin: 5px 0; }
+        button { background: #667eea; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        button:hover { background: #764ba2; }
+        pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>JWT API Tester</h1>
+
+    <div class="section">
+        <h2>Register</h2>
+        <input id="regUsername" placeholder="Username">
+        <input id="regEmail" placeholder="Email">
+        <input id="regPassword" placeholder="Password" type="password">
+        <button onclick="register()">Register</button>
+        <pre id="regResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Login</h2>
+        <input id="loginUsername" placeholder="Username">
+        <input id="loginPassword" placeholder="Password" type="password">
+        <button onclick="login()">Login</button>
+        <pre id="loginResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Refresh Token</h2>
+        <input id="refreshToken" placeholder="Refresh Token" value="">
+        <button onclick="refreshToken()">Refresh</button>
+        <pre id="refreshResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Access Protected API</h2>
+        <input id="apiToken" placeholder="Access Token" value="">
+        <input id="apiEndpoint" placeholder="Endpoint (e.g. /home)" value="/home">
+        <button onclick="callApi()">Call API</button>
+        <pre id="apiResult"></pre>
+    </div>
+</body>
+<script>
+    async function register() {
+        const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: document.getElementById('regUsername').value,
+                email: document.getElementById('regEmail').value,
+                password: document.getElementById('regPassword').value
+            })
+        });
+        const data = await res.json();
+        const el = document.getElementById('regResult');
+        el.textContent = JSON.stringify(data, null, 2);
+        el.className = res.ok ? 'success' : 'error';
+    }
+
+    async function login() {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: document.getElementById('loginUsername').value,
+                password: document.getElementById('loginPassword').value
+            })
+        });
+        const data = await res.json();
+        const el = document.getElementById('loginResult');
+        el.textContent = JSON.stringify(data, null, 2);
+        el.className = res.ok ? 'success' : 'error';
+        if (res.ok) {
+            document.getElementById('apiToken').value = data.accessToken;
+            document.getElementById('refreshToken').value = data.refreshToken;
+        }
+    }
+
+    async function refreshToken() {
+        const res = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                refreshToken: document.getElementById('refreshToken').value
+            })
+        });
+        const data = await res.json();
+        const el = document.getElementById('refreshResult');
+        el.textContent = JSON.stringify(data, null, 2);
+        el.className = res.ok ? 'success' : 'error';
+        if (res.ok) {
+            document.getElementById('apiToken').value = data.accessToken;
+        }
+    }
+
+    async function callApi() {
+        const token = document.getElementById('apiToken').value;
+        const endpoint = document.getElementById('apiEndpoint').value;
+        const res = await fetch(endpoint, {
+            method: 'GET',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const text = await res.text();
+        const el = document.getElementById('apiResult');
+        el.textContent = text;
+        el.className = res.ok ? 'success' : 'error';
+    }
+</script>
+</html>

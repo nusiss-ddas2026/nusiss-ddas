@@ -15,7 +15,7 @@
                 <span th:text="${error}"></span>
             </div>
             
-            <form th:action="@{/register}" method="post" th:object="${user}">
+            <form id="registerForm">
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" th:field="*{username}" required autofocus>
@@ -39,5 +39,31 @@
             </p>
         </div>
     </div>
+    
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    window.location.href = '/login?registered=true';
+                } else {
+                    const errorDiv = document.querySelector('.error-message');
+                    if (errorDiv) errorDiv.textContent = data.error;
+                }
+            } catch (error) {
+                const errorDiv = document.querySelector('.error-message');
+                if (errorDiv) errorDiv.textContent = 'Connection error';
+            }
+        });
+    </script>
 </body>
 </html>
