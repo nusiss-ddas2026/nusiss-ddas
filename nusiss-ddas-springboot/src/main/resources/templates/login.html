@@ -23,7 +23,7 @@
                 Invalid username or password!
             </div>
             
-            <form th:action="@{/login}" method="post">
+            <form id="loginForm">
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required autofocus>
@@ -44,5 +44,34 @@
             </p>
         </div>
     </div>
+    
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    localStorage.setItem('accessToken', data.accessToken);
+                    localStorage.setItem('refreshToken', data.refreshToken);
+                    localStorage.setItem('role', data.role);
+                    localStorage.setItem('username', username);
+                    window.location.href = '/home';
+                } else {
+                    const errorDiv = document.querySelector('.error-message');
+                    if (errorDiv) errorDiv.textContent = data.error || 'Invalid username or password!';
+                }
+            } catch (error) {
+                const errorDiv = document.querySelector('.error-message');
+                if (errorDiv) errorDiv.textContent = 'Connection error';
+            }
+        });
+    </script>
 </body>
 </html>
