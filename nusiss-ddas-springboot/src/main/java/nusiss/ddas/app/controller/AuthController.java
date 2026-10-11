@@ -20,6 +20,7 @@ import nusiss.ddas.app.service.UserService;
 import nusiss.ddas.app.service.VaultSigningService;
 import nusiss.ddas.app.util.FileHashUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -65,6 +66,18 @@ public class AuthController {
     @Autowired
     private VaultSigningService vaultSigningService;
 
+    /**
+     * The bare root URL has no page of its own - send a browser straight to
+     * wherever it's actually useful, instead of the raw 401 JSON that
+     * anyRequest().authenticated() + JwtAuthenticationEntryPoint would otherwise
+     * produce for an unmapped, non-permitAll path.
+     */
+    @GetMapping("/")
+    public String rootPage(Authentication auth) {
+        boolean loggedIn = auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken);
+        return loggedIn ? "redirect:/home" : "redirect:/login";
+    }
+
     @GetMapping("/login")
     public String loginPage() {
         return "login";
@@ -74,6 +87,11 @@ public class AuthController {
     public String registerPage(Model model) {
         model.addAttribute("user", new User());
         return "register";
+    }
+
+    @GetMapping("/mfa-setup")
+    public String mfaSetupPage() {
+        return "mfa-setup";
     }
 
     @PostMapping("/register")

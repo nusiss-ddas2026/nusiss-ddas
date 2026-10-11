@@ -28,24 +28,58 @@
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required autofocus>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
                 </div>
-                
+
                 <div style="text-align: center;">
                     <button type="submit" class="btn btn-login">Login</button>
                 </div>
             </form>
-            
+
+            <form id="mfaForm" style="display:none;">
+                <div class="form-group">
+                    <label for="mfaCode">Authentication code</label>
+                    <input type="text" id="mfaCode" name="mfaCode" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" required autofocus>
+                </div>
+
+                <div style="text-align: center;">
+                    <button type="submit" class="btn btn-login">Verify</button>
+                </div>
+            </form>
+
             <p class="register-link">
                 Don't have an account? <a th:href="@{/register}">Register here</a>
             </p>
         </div>
     </div>
-    
+
     <script>
+        let pendingMfaChallengeId = null;
+
+        function handleAuthSuccess(data, username) {
+            localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('refreshToken', data.refreshToken);
+            localStorage.setItem('role', data.role);
+            localStorage.setItem('username', username || data.username);
+            window.location.href = '/home';
+        }
+
+        function showError(message) {
+            // The .error-message div only exists server-side when the page was loaded
+            // with ?error on the URL. The AJAX flows here never trigger that reload, so
+            // create the div on first use if it isn't already in the page.
+            let errorDiv = document.querySelector('.error-message');
+            if (!errorDiv) {
+                errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                document.querySelector('h2').insertAdjacentElement('afterend', errorDiv);
+            }
+            errorDiv.textContent = message;
+        }
+
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const username = document.getElementById('username').value;
@@ -57,19 +91,37 @@
                     body: JSON.stringify({ username, password })
                 });
                 const data = await response.json();
-                if (response.ok) {
-                    localStorage.setItem('accessToken', data.accessToken);
-                    localStorage.setItem('refreshToken', data.refreshToken);
-                    localStorage.setItem('role', data.role);
-                    localStorage.setItem('username', username);
-                    window.location.href = '/home';
+                if (response.ok && data.mfaRequired) {
+                    pendingMfaChallengeId = data.challengeId;
+                    document.getElementById('loginForm').style.display = 'none';
+                    document.getElementById('mfaForm').style.display = 'block';
+                } else if (response.ok) {
+                    handleAuthSuccess(data, username);
                 } else {
-                    const errorDiv = document.querySelector('.error-message');
-                    if (errorDiv) errorDiv.textContent = data.error || 'Invalid username or password!';
+                    showError(data.error || 'Invalid username or password!');
                 }
             } catch (error) {
-                const errorDiv = document.querySelector('.error-message');
-                if (errorDiv) errorDiv.textContent = 'Connection error';
+                showError('Connection error');
+            }
+        });
+
+        document.getElementById('mfaForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const code = document.getElementById('mfaCode').value;
+            try {
+                const response = await fetch('/api/auth/mfa/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ challengeId: pendingMfaChallengeId, code })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    handleAuthSuccess(data);
+                } else {
+                    showError(data.error || 'Invalid authentication code');
+                }
+            } catch (error) {
+                showError('Connection error');
             }
         });
     </script>
