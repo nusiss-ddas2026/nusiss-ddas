@@ -19,3 +19,7 @@ uploads/
 .project
 .settings/
 .vscode/
+# Deploy secrets and Terraform state
+nusiss-ddas-springboot/deploy/.env
+nusiss-ddas-springboot/infra/.terraform/
+nusiss-ddas-springboot/infra/*.tfstate*
