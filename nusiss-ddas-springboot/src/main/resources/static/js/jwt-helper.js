@@ -1,3 +1,8 @@
+function getCookie(name) {
+    const match = document.cookie.match('(^|;\\s*)' + name + '=([^;]*)');
+    return match ? decodeURIComponent(match[2]) : null;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const path = window.location.pathname;
     const token = getCookie('jwtToken');

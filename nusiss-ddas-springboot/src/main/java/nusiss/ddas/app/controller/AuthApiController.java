@@ -4,6 +4,8 @@ import nusiss.ddas.app.model.JwtToken;
 import nusiss.ddas.app.model.User;
 import nusiss.ddas.app.repository.UserRepository;
 import nusiss.ddas.app.service.JwtTokenService;
+import nusiss.ddas.app.service.MfaChallengeService;
+import nusiss.ddas.app.service.TotpService;
 import nusiss.ddas.app.service.UserService;
 import nusiss.ddas.app.util.JwtUtil;
 import org.springframework.http.ResponseCookie;
@@ -29,16 +31,21 @@ public class AuthApiController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
+    private final MfaChallengeService mfaChallengeService;
+    private final TotpService totpService;
 
     public AuthApiController(UserService userService, UserDetailsService userDetailsService,
                              JwtUtil jwtUtil, UserRepository userRepository, PasswordEncoder passwordEncoder,
-                             JwtTokenService jwtTokenService) {
+                             JwtTokenService jwtTokenService, MfaChallengeService mfaChallengeService,
+                             TotpService totpService) {
         this.userService = userService;
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenService = jwtTokenService;
+        this.mfaChallengeService = mfaChallengeService;
+        this.totpService = totpService;
     }
 
     @PostMapping("/register")
@@ -70,6 +77,59 @@ public class AuthApiController {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
 
+        if (user.isMfaEnabled()) {
+            // Password is correct, but a second factor is still required. No tokens are
+            // issued yet, and nothing is written to jwt_tokens - see MfaChallengeService
+            // for why a pending login must stay out of that table entirely.
+            String challengeId = mfaChallengeService.createChallenge(user.getUserId());
+            Map<String, Object> mfaResponse = new HashMap<>();
+            mfaResponse.put("mfaRequired", true);
+            mfaResponse.put("challengeId", challengeId);
+            return ResponseEntity.ok(mfaResponse);
+        }
+
+        return ResponseEntity.ok(issueTokensAndSetCookie(user, userDetails, response));
+    }
+
+    /**
+     * Completes a login that was paused for MFA: exchanges a valid challengeId
+     * (proof that the password step already succeeded) plus a correct TOTP code
+     * for the normal access/refresh token pair, issued exactly as a non-MFA login
+     * would issue them.
+     */
+    @PostMapping("/mfa/verify")
+    public ResponseEntity<?> verifyMfa(@RequestBody Map<String, String> body, HttpServletResponse response) {
+        String challengeId = body.get("challengeId");
+        String code = body.get("code");
+
+        Integer userId = mfaChallengeService.peekChallenge(challengeId);
+        if (userId == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Login session expired or invalid. Please log in again."));
+        }
+
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Login session expired or invalid. Please log in again."));
+        }
+
+        if (!totpService.verifyCode(user.getMfaSecret(), code)) {
+            // Wrong code: leave the challenge alive so the user can retry without
+            // having to re-enter their password.
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid authentication code"));
+        }
+
+        mfaChallengeService.invalidateChallenge(challengeId);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
+        return ResponseEntity.ok(issueTokensAndSetCookie(user, userDetails, response));
+    }
+
+    /**
+     * Issues a fresh access/refresh token pair for a fully-authenticated user
+     * (password, and MFA code if enabled, both already verified), invalidating
+     * any previous tokens and setting the jwtToken cookie - the same behavior
+     * the old single-step login() always performed.
+     */
+    private Map<String, String> issueTokensAndSetCookie(User user, UserDetails userDetails, HttpServletResponse response) {
         jwtTokenService.invalidateUserTokens(user.getUserId());
 
         String accessToken = jwtUtil.generateToken(userDetails, new HashMap<String, Object>() {{
@@ -93,9 +153,9 @@ public class AuthApiController {
         tokens.put("accessToken", accessToken);
         tokens.put("refreshToken", refreshToken);
         tokens.put("role", user.getRole().name());
-        tokens.put("username", username);
+        tokens.put("username", user.getUsername());
 
-        return ResponseEntity.ok(tokens);
+        return tokens;
     }
 
     @PostMapping("/refresh")
