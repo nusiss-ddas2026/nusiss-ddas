@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Settings</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <div class="login-form">
+            <h2>Security Settings</h2>
+
+            <div id="messageArea"></div>
+
+            <div id="statusSection">
+                <p id="statusText" style="text-align:center; margin-bottom:20px;">Checking MFA status...</p>
+                <button id="enableBtn" class="btn" style="display:none;">Enable MFA</button>
+                <button id="disableBtn" class="btn btn-reject" style="display:none; width:100%; padding:12px;">Disable MFA</button>
+            </div>
+
+            <div id="enrollSection" style="display:none; text-align:center;">
+                <p>Scan this QR code with Google Authenticator, Microsoft Authenticator, Authy, or any other TOTP app:</p>
+                <img id="qrImage" alt="MFA enrollment QR code" style="margin:20px 0; max-width:220px;">
+                <p style="margin-bottom:10px;">Or enter this key manually:</p>
+                <p id="secretText" style="font-family: monospace; font-weight:bold; letter-spacing:1px; margin-bottom:20px;"></p>
+
+                <form id="enrollForm" style="text-align:left;">
+                    <div class="form-group">
+                        <label for="enrollCode">Enter the 6-digit code from your app to confirm</label>
+                        <input type="text" id="enrollCode" inputmode="numeric" pattern="[0-9]*" maxlength="6" required autofocus>
+                    </div>
+                    <button type="submit" class="btn btn-login" style="width:100%;">Confirm and enable</button>
+                </form>
+            </div>
+
+            <p class="register-link">
+                <a th:href="@{/home}">Back to Home</a>
+            </p>
+        </div>
+    </div>
+
+    <script th:src="@{/js/jwt-helper.js}"></script>
+    <script>
+        const token = getCookie('jwtToken');
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        const authHeaders = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+
+        function showMessage(text, type) {
+            const area = document.getElementById('messageArea');
+            area.innerHTML = '';
+            const div = document.createElement('div');
+            div.className = type === 'error' ? 'error-message' : 'success-message';
+            div.textContent = text;
+            area.appendChild(div);
+        }
+
+        function showEnabledState() {
+            document.getElementById('enrollSection').style.display = 'none';
+            document.getElementById('statusText').textContent = 'MFA is currently ENABLED on your account.';
+            document.getElementById('enableBtn').style.display = 'none';
+            document.getElementById('disableBtn').style.display = 'block';
+        }
+
+        function showDisabledState() {
+            document.getElementById('enrollSection').style.display = 'none';
+            document.getElementById('statusText').textContent = 'MFA is currently disabled on your account.';
+            document.getElementById('enableBtn').style.display = 'block';
+            document.getElementById('disableBtn').style.display = 'none';
+        }
+
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/mfa/status', { headers: authHeaders });
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const data = await response.json();
+                if (data.mfaEnabled) {
+                    showEnabledState();
+                } else {
+                    showDisabledState();
+                }
+            } catch (error) {
+                showMessage('Could not load MFA status.', 'error');
+            }
+        }
+
+        document.getElementById('enableBtn').addEventListener('click', async function() {
+            try {
+                const response = await fetch('/api/mfa/setup', { headers: authHeaders });
+                const data = await response.json();
+                if (!response.ok) {
+                    showMessage(data.error || 'Could not start MFA setup.', 'error');
+                    return;
+                }
+                document.getElementById('qrImage').src = data.qrCodeDataUri;
+                document.getElementById('secretText').textContent = data.secret;
+                document.getElementById('enrollSection').style.display = 'block';
+            } catch (error) {
+                showMessage('Could not start MFA setup.', 'error');
+            }
+        });
+
+        document.getElementById('enrollForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const code = document.getElementById('enrollCode').value;
+            try {
+                const response = await fetch('/api/mfa/enable', {
+                    method: 'POST',
+                    headers: authHeaders,
+                    body: JSON.stringify({ code })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showMessage('MFA enabled successfully.', 'success');
+                    showEnabledState();
+                } else {
+                    showMessage(data.error || 'Invalid authentication code', 'error');
+                }
+            } catch (error) {
+                showMessage('Could not confirm MFA setup.', 'error');
+            }
+        });
+
+        document.getElementById('disableBtn').addEventListener('click', async function() {
+            try {
+                const response = await fetch('/api/mfa/disable', { method: 'POST', headers: authHeaders });
+                const data = await response.json();
+                if (response.ok) {
+                    showMessage('MFA disabled.', 'success');
+                    showDisabledState();
+                } else {
+                    showMessage(data.error || 'Could not disable MFA.', 'error');
+                }
+            } catch (error) {
+                showMessage('Could not disable MFA.', 'error');
+            }
+        });
+
+        loadStatus();
+    </script>
+</body>
+</html>

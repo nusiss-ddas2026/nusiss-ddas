@@ -60,7 +60,7 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/register", "/login", "/css/**", "/js/**", "/jwt-test.html").permitAll()
+                .requestMatchers("/", "/register", "/login", "/css/**", "/js/**", "/jwt-test.html").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .requestMatchers("/updateRole", "/updateDept", "/bulkUpdateUsers").hasRole("ADMIN")
