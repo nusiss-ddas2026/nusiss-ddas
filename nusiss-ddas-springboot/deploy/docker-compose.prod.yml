@@ -1,0 +1,78 @@
+# Production stack. Run from this directory: docker compose -f docker-compose.prod.yml up -d --build
+# Only Caddy publishes ports. Postgres and Vault are reachable only on the internal network.
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [internal]
+    depends_on: [app]
+    security_opt: [no-new-privileges:true]
+
+  app:
+    build:
+      context: ..
+    restart: unless-stopped
+    # Only the variables the app needs; the Postgres admin password is deliberately not passed in.
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      VAULT_APP_TOKEN: ${VAULT_APP_TOKEN}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD}
+      SEED_MANAGER_PASSWORD: ${SEED_MANAGER_PASSWORD}
+    volumes:
+      - uploads:/data/uploads
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [internal]
+    depends_on: [postgres, vault]
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    security_opt: [no-new-privileges:true]
+    networks: [internal]
+
+  vault:
+    image: hashicorp/vault:1.17
+    restart: unless-stopped
+    command: ["server", "-config=/vault/config/vault.hcl"]
+    cap_add: [IPC_LOCK]
+    environment:
+      AWS_REGION: ${AWS_REGION}
+      VAULT_AWSKMS_SEAL_KEY_ID: ${VAULT_AWSKMS_SEAL_KEY_ID}
+    volumes:
+      - ./vault/vault.hcl:/vault/config/vault.hcl:ro
+      - vault-data:/vault/file
+      - vault-audit:/vault/logs
+    networks: [internal]
+
+networks:
+  internal:
+
+volumes:
+  caddy-data:
+  caddy-config:
+  pgdata:
+  uploads:
+  vault-data:
+  vault-audit:

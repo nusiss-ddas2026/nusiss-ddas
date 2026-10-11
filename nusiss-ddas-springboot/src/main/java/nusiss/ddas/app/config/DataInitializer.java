@@ -39,6 +39,16 @@ public class DataInitializer {
     @Value("${app.storage.upload-dir}")
     private String uploadDir;
 
+    // Local-dev defaults only; the prod profile requires these to come from the environment.
+    @Value("${app.seed.admin-password:admin123}")
+    private String adminPassword;
+
+    @Value("${app.seed.user-password:user123}")
+    private String userPassword;
+
+    @Value("${app.seed.manager-password:manager123}")
+    private String managerPassword;
+
     @Bean
     CommandLineRunner initDatabase() {
         return args -> {
@@ -48,7 +58,7 @@ public class DataInitializer {
             if (userRepository.count() == 0) {
                 User admin = new User();
                 admin.setUsername("admin");
-                admin.setPasswordHash(passwordEncoder.encode("admin123"));
+                admin.setPasswordHash(passwordEncoder.encode(adminPassword));
                 admin.setEmail("admin@nus.edu.sg");
                 admin.setRole(Role.ADMIN);
                 admin.setDepartment(it);
@@ -56,7 +66,7 @@ public class DataInitializer {
 
                 User user = new User();
                 user.setUsername("user");
-                user.setPasswordHash(passwordEncoder.encode("user123"));
+                user.setPasswordHash(passwordEncoder.encode(userPassword));
                 user.setEmail("user@nus.edu.sg");
                 user.setRole(Role.USER);
                 user.setDepartment(cs);
@@ -65,7 +75,7 @@ public class DataInitializer {
 
                 User approver = new User();
                 approver.setUsername("manager");
-                approver.setPasswordHash(passwordEncoder.encode("manager123"));
+                approver.setPasswordHash(passwordEncoder.encode(managerPassword));
                 approver.setEmail("manager@nus.edu.sg");
                 approver.setRole(Role.APPROVER);
                 approver.setDepartment(cs);
