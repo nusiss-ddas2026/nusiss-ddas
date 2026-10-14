@@ -1,0 +1,42 @@
+Build the APK
+In Android Studio, go to Build → Build Bundle(s) / APK(s) → Build APK(s)
+Wait for build to complete (first build takes 2-5 minutes)
+A notification pops up: "APK(s) generated successfully"
+Click "locate" to find your APK
+The APK is located at:
+
+C:\NUS\DDASMobile\AndroidApp\DDASMobile\app\build\outputs\apk\debug\app-debug.apk
+
+
+
+Install on Your Phone
+Option A: USB Cable
+
+Enable Developer Options on your phone (tap Build Number 7 times in Settings → About Phone)
+Enable USB Debugging in Developer Options
+Connect phone to PC via USB
+Copy the APK to your phone
+Install on phone (allow "Install from Unknown Sources" if prompted)
+
+Option B: Wireless (ADB over WiFi)
+
+Enable Developer Options + USB Debugging on phone
+Connect phone to PC via USB once
+In terminal:
+cd C:\NUS\DDASMobile\AndroidApp\DDASMobile
+Find your ADB path (usually in Android Studio: Tools → SDK Manager → Android SDK Platform → look for platform-tools\adb.exe)
+Run:
+adb tcpip 5555
+adb connect <your-phone-ip>:5555
+adb install app\build\outputs\apk\debug\app-debug.apk
+
+Step 9: Run and Test
+Open DDAS Mobile from your phone's app drawer
+It now runs as a native Android app
+The back button navigates web history instead of closing
+No browser address bar visible
+Full-screen experience
+
+Important: Your Spring Boot backend must be running (mvn spring-boot:run) for the app to connect. Change API_BASE in js/api.js to your computer's IP if testing on a phone over WiFi:
+
+const API_BASE = 'http://192.168.1.100:8080';  // Your PC's IP
