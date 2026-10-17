@@ -55,7 +55,8 @@ services:
   vault:
     image: hashicorp/vault:1.17
     restart: unless-stopped
-    command: ["server", "-config=/vault/config/vault.hcl"]
+    # The image entrypoint adds -config=/vault/config itself for "server"; passing the file too loads it twice
+    command: ["server"]
     cap_add: [IPC_LOCK]
     environment:
       AWS_REGION: ${AWS_REGION}
