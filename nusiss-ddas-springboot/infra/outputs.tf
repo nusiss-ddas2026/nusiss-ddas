@@ -14,3 +14,8 @@ output "shell" {
 output "kms_key_id" {
   value = aws_kms_key.vault_unseal.key_id
 }
+
+output "deploy_role_arn" {
+  description = "Set this as the AWS_DEPLOY_ROLE_ARN variable in the GitHub 'production' environment"
+  value       = aws_iam_role.github_deploy.arn
+}

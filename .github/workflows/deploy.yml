@@ -1,0 +1,90 @@
+# Continuous deployment: after CI succeeds on main, wait for a human to approve, then deploy that exact commit.
+#
+# Requirements (see DEPLOY.md):
+#   - the CI workflow's `name:` must be exactly "CI" (change the `workflows:` line below if it differs)
+#   - GitHub Environment "production" with required reviewers, restricted to the main branch
+#   - Environment variables: AWS_DEPLOY_ROLE_ARN, AWS_REGION, DEPLOY_INSTANCE_ID, DEPLOY_URL
+# No AWS keys are stored in GitHub: the job exchanges its OIDC token for short-lived credentials.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Only deploy a push to main that CI passed, or a manual run
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    environment: production   # approval gate + the AWS trust policy is tied to this environment
+    permissions:
+      id-token: write         # needed to request the OIDC token
+      contents: read
+    steps:
+      - name: Work out the commit to deploy
+        id: sha
+        env:
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          [[ "$EVENT_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "unexpected sha: $EVENT_SHA"; exit 1; }
+          echo "sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
+          echo "Deploying $EVENT_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Get short-lived AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: ddas-deploy-${{ github.run_id }}
+
+      - name: Run the deploy on the server (AWS Systems Manager)
+        env:
+          INSTANCE_ID: ${{ vars.DEPLOY_INSTANCE_ID }}
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "ddas deploy ${SHA:0:7}" \
+            --timeout-seconds 1500 \
+            --parameters "commands=[\"/opt/ddas/nusiss-ddas-springboot/deploy/deploy.sh $SHA\"]" \
+            --query Command.CommandId --output text)
+          echo "SSM command: $CMD_ID"
+
+          STATUS=Pending
+          for _ in $(seq 1 150); do   # up to ~25 minutes (the Maven build runs on the server)
+            STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" \
+              --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in Success|Failed|Cancelled|TimedOut) break ;; esac
+            sleep 10
+          done
+
+          echo "---- server output ----"
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" \
+            --query StandardOutputContent --output text | tail -n 40
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" \
+            --query StandardErrorContent --output text | tail -n 40
+          echo "Final status: $STATUS"
+          [ "$STATUS" = "Success" ]
+
+      - name: Check the public site
+        env:
+          DEPLOY_URL: ${{ vars.DEPLOY_URL }}
+        run: |
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors --max-time 15 "$DEPLOY_URL/login" -o /dev/null
+          echo "$DEPLOY_URL is up" >> "$GITHUB_STEP_SUMMARY"
