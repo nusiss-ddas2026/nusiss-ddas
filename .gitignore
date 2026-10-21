@@ -23,3 +23,9 @@ uploads/
 nusiss-ddas-springboot/deploy/.env
 nusiss-ddas-springboot/infra/.terraform/
 nusiss-ddas-springboot/infra/*.tfstate*
+
+# macOS Finder files
+.DS_Store
+
+# Local deployment runbook (not committed)
+nusiss-ddas-springboot/DEPLOY.md
