@@ -44,6 +44,15 @@ jobs:
           echo "sha=$EVENT_SHA" >> "$GITHUB_OUTPUT"
           echo "Deploying $EVENT_SHA" >> "$GITHUB_STEP_SUMMARY"
 
+      # TEMPORARY DEBUG STEP: prints which identity GitHub presents to AWS (claims only, never the token). Remove once OIDC works.
+      - name: Debug - show OIDC claims and role variable
+        env:
+          ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+        run: |
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          echo "$TOKEN" | python3 -c "import sys,json,base64; p=sys.stdin.read().strip().split('.')[1]; p+='='*(-len(p)%4); c=json.loads(base64.urlsafe_b64decode(p)); print(json.dumps({k:c.get(k) for k in ['sub','aud','iss','repository','repository_owner','environment','ref']}, indent=2))"
+          echo "AWS_DEPLOY_ROLE_ARN variable = [$ROLE_ARN]"
+
       - name: Get short-lived AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
