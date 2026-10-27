@@ -20,6 +20,11 @@ import nusiss.ddas.app.service.UserService;
 import nusiss.ddas.app.service.VaultSigningService;
 import nusiss.ddas.app.util.FileHashUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -34,6 +39,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -308,6 +315,48 @@ public class AuthController {
             auditLogRepository.save(new AuditLog(actor, resultLabel, doc, request.getRemoteAddr()));
         }
         return "redirect:/home?mode=" + mode;
+    }
+
+    @GetMapping("/downloadDocument")
+    public ResponseEntity<?> downloadDocument(@RequestParam Integer documentId,
+                                              Authentication auth,
+                                              HttpServletRequest request) {
+        Document doc = documentRepository.findById(documentId).orElse(null);
+        User actor = userRepository.findByUsername(auth.getName()).orElse(null);
+        if (doc == null || actor == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        boolean isUploader = doc.getUploader().getUsername().equals(actor.getUsername());
+        boolean sameDepartment = actor.getDepartment() != null
+            && doc.getUploader().getDepartment() != null
+            && doc.getUploader().getDepartment().getDeptName().equals(actor.getDepartment().getDeptName());
+        if (!isUploader && !sameDepartment) {
+            return ResponseEntity.status(403).build();
+        }
+
+        Path filePath = Path.of(doc.getFilePath());
+        if (!Files.exists(filePath)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        auditLogRepository.save(new AuditLog(actor, "DOWNLOADED document #" + documentId,
+                                             doc, request.getRemoteAddr()));
+
+        String encodedName = URLEncoder.encode(doc.getDocName(), StandardCharsets.UTF_8).replace("+", "%20");
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(doc.getContentType());
+        } catch (Exception e) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+
+        Resource resource = new FileSystemResource(filePath);
+        return ResponseEntity.ok()
+            .contentType(mediaType)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedName)
+            .contentLength(doc.getFileSize())
+            .body(resource);
     }
 
     @PostMapping("/updateRole")

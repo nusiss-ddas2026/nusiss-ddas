@@ -37,10 +37,11 @@
                             <th>Name</th>
                             <th>Type</th>
                             <th>Uploader</th>
-                            <th>Status</th>
+                            <th>Approval Status</th>
                             <th>Size</th>
                             <th>Created On</th>
                             <th>Integrity</th>
+                            <th>Download</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -58,6 +59,9 @@
                                     <input type="hidden" name="mode" value="myDocuments">
                                     <button type="submit" class="btn-save">Verify</button>
                                 </form>
+                            </td>
+                            <td>
+                                <a th:href="@{/downloadDocument(documentId=${doc.docId})}" class="btn-save" style="text-decoration: none; display: inline-block;">Download</a>
                             </td>
                         </tr>
                     </tbody>
@@ -86,7 +90,8 @@
                                 <th>Uploader</th>
                                 <th>Status</th>
                                 <th>Created On</th>
-                                <th>Actions</th>
+                                <th>Approval Actions</th>
+                                <th>Download</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -105,6 +110,9 @@
                                         <option value="REJECT">REJECT</option>
                                     </select>
                                     <span th:if="${doc.status.name() != 'PENDING'}" th:text="${doc.status}"></span>
+                                </td>
+                                <td>
+                                    <a th:href="@{/downloadDocument(documentId=${doc.docId})}" class="btn-save" style="text-decoration: none; display: inline-block;">Download</a>
                                 </td>
                             </tr>
                         </tbody>
