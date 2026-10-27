@@ -4,9 +4,7 @@ name: CI
 
 on:
   push:
-    branches: [sigmund-cicd]
   pull_request:
-    branches: [sigmund-cicd]
 
 concurrency:
   group: ci-${{ github.ref }}
