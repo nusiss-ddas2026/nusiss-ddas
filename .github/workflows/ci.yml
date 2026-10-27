@@ -1,0 +1,54 @@
+# Continuous integration: build and test the Spring Boot app on every push and pull request.
+# The `name:` must stay "CI" because deploy.yml is triggered by the completion of a workflow named "CI".
+name: CI
+
+on:
+  push:
+    branches: [sigmund-cicd]
+  pull_request:
+    branches: [sigmund-cicd]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true   # skip superseded runs on the same branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nusiss-ddas-springboot
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven   # cache ~/.m2 keyed on pom.xml
+
+      - name: Compile
+        run: mvn -B -ntp compile
+
+      - name: Run tests
+        run: mvn -B -ntp test
+
+      - name: Upload test reports (only when tests failed)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: nusiss-ddas-springboot/target/surefire-reports/
+          retention-days: 7
+
+      - name: Package
+        run: mvn -B -ntp -DskipTests package
+
+      - name: Upload application jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddas-jar
+          path: nusiss-ddas-springboot/target/*.jar
+          retention-days: 7
