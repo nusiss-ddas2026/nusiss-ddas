@@ -9,6 +9,9 @@ services:
       - "5432:5432"
     volumes:
       - ddas-postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres-tls/certs:/certs-ro:ro
+      - ./docker/postgres-tls/pg-entrypoint.sh:/usr/local/bin/pg-entrypoint.sh:ro
+    entrypoint: ["/usr/local/bin/pg-entrypoint.sh"]
 
   vault:
     image: hashicorp/vault:1.17
