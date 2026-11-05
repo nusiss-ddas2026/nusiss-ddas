@@ -6,6 +6,9 @@ bin/
 # Block locally stored uploaded documents
 uploads/
 
+# Block generated local TLS certs (dev-only, self-signed)
+nusiss-ddas-springboot/docker/postgres-tls/certs/
+
 # Block compiled binaries
 *.class
 *.jar

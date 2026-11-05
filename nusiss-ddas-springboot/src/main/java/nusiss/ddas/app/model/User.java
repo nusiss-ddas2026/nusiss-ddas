@@ -2,6 +2,7 @@ package nusiss.ddas.app.model;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.persistence.*;
+import nusiss.ddas.app.model.enums.AuthProvider;
 import nusiss.ddas.app.model.enums.Role;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -47,6 +48,10 @@ public class User {
 
     @Column(name = "mfa_enabled", nullable = false)
     private boolean mfaEnabled = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false)
+    private AuthProvider authProvider = AuthProvider.LOCAL;
 
     @ManyToOne
     @JoinColumn(name = "created_by")
@@ -145,6 +150,14 @@ public class User {
 
     public void setMfaEnabled(boolean mfaEnabled) {
         this.mfaEnabled = mfaEnabled;
+    }
+
+    public AuthProvider getAuthProvider() {
+        return authProvider;
+    }
+
+    public void setAuthProvider(AuthProvider authProvider) {
+        this.authProvider = authProvider;
     }
 
     public User getCreatedBy() {

@@ -2,9 +2,11 @@ package nusiss.ddas.app.controller;
 
 import nusiss.ddas.app.model.JwtToken;
 import nusiss.ddas.app.model.User;
+import nusiss.ddas.app.model.enums.AuthProvider;
 import nusiss.ddas.app.repository.UserRepository;
 import nusiss.ddas.app.service.JwtTokenService;
 import nusiss.ddas.app.service.MfaChallengeService;
+import nusiss.ddas.app.service.TokenIssuanceService;
 import nusiss.ddas.app.service.TotpService;
 import nusiss.ddas.app.service.UserService;
 import nusiss.ddas.app.util.JwtUtil;
@@ -43,11 +45,12 @@ public class AuthApiController {
     private final JwtTokenService jwtTokenService;
     private final MfaChallengeService mfaChallengeService;
     private final TotpService totpService;
+    private final TokenIssuanceService tokenIssuanceService;
 
     public AuthApiController(UserService userService, UserDetailsService userDetailsService,
                              JwtUtil jwtUtil, UserRepository userRepository, PasswordEncoder passwordEncoder,
                              JwtTokenService jwtTokenService, MfaChallengeService mfaChallengeService,
-                             TotpService totpService) {
+                             TotpService totpService, TokenIssuanceService tokenIssuanceService) {
         this.userService = userService;
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
@@ -56,6 +59,7 @@ public class AuthApiController {
         this.jwtTokenService = jwtTokenService;
         this.mfaChallengeService = mfaChallengeService;
         this.totpService = totpService;
+        this.tokenIssuanceService = tokenIssuanceService;
     }
 
     @PostMapping("/register")
@@ -91,6 +95,11 @@ public class AuthApiController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        if (user.getAuthProvider() == AuthProvider.OIDC) {
+            return ResponseEntity.status(401).body(Map.of("error",
+                    "This account uses Single Sign-On. Please log in with the Keycloak button."));
+        }
+
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             log.warn("SECURITY_EVENT type=LOGIN_FAILURE user={} reason=bad_password ip={}",
                     sanitizeForLog(username), request.getRemoteAddr());
@@ -110,7 +119,7 @@ public class AuthApiController {
             return ResponseEntity.ok(mfaResponse);
         }
 
-        return ResponseEntity.ok(issueTokensAndSetCookie(user, userDetails, response));
+        return ResponseEntity.ok(tokenIssuanceService.issueTokensAndSetCookie(user, userDetails, response));
     }
 
     /**
