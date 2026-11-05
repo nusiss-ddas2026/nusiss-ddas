@@ -10,14 +10,19 @@ import nusiss.ddas.app.service.TokenIssuanceService;
 import nusiss.ddas.app.service.TotpService;
 import nusiss.ddas.app.service.UserService;
 import nusiss.ddas.app.util.JwtUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +31,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthApiController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthApiController.class);
+
+    @Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
 
     private final UserService userService;
     private final UserDetailsService userDetailsService;
@@ -69,11 +79,19 @@ public class AuthApiController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> body, HttpServletResponse response) {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> body, HttpServletRequest request,
+                                   HttpServletResponse response) {
         String username = body.get("username");
         String password = body.get("password");
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        UserDetails userDetails;
+        try {
+            userDetails = userDetailsService.loadUserByUsername(username);
+        } catch (UsernameNotFoundException e) {
+            log.warn("SECURITY_EVENT type=LOGIN_FAILURE user={} reason=unknown_user ip={}",
+                    sanitizeForLog(username), request.getRemoteAddr());
+            throw e;
+        }
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -83,8 +101,12 @@ public class AuthApiController {
         }
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            log.warn("SECURITY_EVENT type=LOGIN_FAILURE user={} reason=bad_password ip={}",
+                    sanitizeForLog(username), request.getRemoteAddr());
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
+        log.info("SECURITY_EVENT type=LOGIN_SUCCESS user={} ip={}",
+                sanitizeForLog(username), request.getRemoteAddr());
 
         if (user.isMfaEnabled()) {
             // Password is correct, but a second factor is still required. No tokens are
@@ -129,7 +151,43 @@ public class AuthApiController {
 
         mfaChallengeService.invalidateChallenge(challengeId);
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
-        return ResponseEntity.ok(tokenIssuanceService.issueTokensAndSetCookie(user, userDetails, response));
+        return ResponseEntity.ok(issueTokensAndSetCookie(user, userDetails, response));
+    }
+
+    /**
+     * Issues a fresh access/refresh token pair for a fully-authenticated user
+     * (password, and MFA code if enabled, both already verified), invalidating
+     * any previous tokens and setting the jwtToken cookie - the same behavior
+     * the old single-step login() always performed.
+     */
+    private Map<String, String> issueTokensAndSetCookie(User user, UserDetails userDetails, HttpServletResponse response) {
+        jwtTokenService.invalidateUserTokens(user.getUserId());
+
+        String accessToken = jwtUtil.generateToken(userDetails, new HashMap<String, Object>() {{
+            put("role", user.getRole().name());
+        }});
+        String refreshToken = jwtUtil.generateRefreshToken(userDetails, new HashMap<>());
+
+        jwtTokenService.saveToken(user.getUserId(), accessToken, "ACCESS");
+        jwtTokenService.saveToken(user.getUserId(), refreshToken, "REFRESH");
+
+        ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", accessToken)
+                .httpOnly(false) // jwt-helper.js reads this cookie; needs a frontend change to harden
+                .secure(cookieSecure)
+                .sameSite("Strict")
+                .path("/")
+                .maxAge(24 * 60 * 60)
+                .build();
+
+        response.setHeader("Set-Cookie", jwtCookie.toString());
+
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("accessToken", accessToken);
+        tokens.put("refreshToken", refreshToken);
+        tokens.put("role", user.getRole().name());
+        tokens.put("username", user.getUsername());
+
+        return tokens;
     }
 
     @PostMapping("/refresh")
@@ -166,7 +224,8 @@ public class AuthApiController {
 
         ResponseCookie deleteCookie = ResponseCookie.from("jwtToken", "")
                 .httpOnly(false)
-                .secure(false)
+                .secure(cookieSecure)
+                .sameSite("Strict")
                 .path("/")
                 .maxAge(0)
                 .build();
@@ -174,5 +233,10 @@ public class AuthApiController {
         response.setHeader("Set-Cookie", deleteCookie.toString());
 
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+    }
+
+    /** Strips CR/LF so a crafted username can't inject fake lines into the security log. */
+    private static String sanitizeForLog(String value) {
+        return value == null ? "null" : value.replaceAll("[\\r\\n]", "_");
     }
 }

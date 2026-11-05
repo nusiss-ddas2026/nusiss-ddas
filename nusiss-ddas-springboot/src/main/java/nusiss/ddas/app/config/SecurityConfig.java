@@ -73,6 +73,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/reviewDocument").hasAnyRole("APPROVER", "ADMIN")
                 .requestMatchers("/uploadDocument").authenticated()
                 .requestMatchers("/verifyDocument").authenticated()
+                .requestMatchers("/downloadDocument").authenticated()
                 .requestMatchers("/home").authenticated()
                 .anyRequest().authenticated()
             )

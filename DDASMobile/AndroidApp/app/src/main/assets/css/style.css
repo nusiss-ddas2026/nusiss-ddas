@@ -1,0 +1,454 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f2f2f7;
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+#app {
+    min-height: 100vh;
+    position: relative;
+}
+
+/* Status bar spacer */
+.status-bar {
+    height: env(safe-area-inset-top, 20px);
+    background: #007AFF;
+}
+
+/* App header */
+.app-header {
+    background: #007AFF;
+    color: white;
+    padding: 16px 20px;
+    padding-top: max(16px, env(safe-area-inset-top, 20px));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.app-header h1 {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+}
+
+.app-header .subtitle {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-top: 2px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 16px;
+}
+
+.header-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+/* Content area */
+.content {
+    padding: 16px;
+    padding-bottom: 100px;
+}
+
+/* Login / Register screens */
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 30px 24px;
+    background: linear-gradient(180deg, #007AFF 0%, #5856D6 100%);
+}
+
+.auth-card {
+    background: white;
+    border-radius: 20px;
+    padding: 28px 24px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+.auth-card h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1c1c1e;
+    margin-bottom: 6px;
+    text-align: center;
+}
+
+.auth-card .subtitle {
+    font-size: 14px;
+    color: #8e8e93;
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+/* Input fields - iOS style */
+.input-group {
+    margin-bottom: 14px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #3a3a3c;
+    margin-bottom: 6px;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1.5px solid #e5e5ea;
+    border-radius: 12px;
+    font-size: 16px;
+    background: #f2f2f7;
+    color: #1c1c1e;
+    transition: border-color 0.2s, background 0.2s;
+    font-family: inherit;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #007AFF;
+    background: white;
+}
+
+.input-group input::placeholder {
+    color: #aeaeb2;
+}
+
+/* Buttons - iOS style */
+.btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.2s;
+    font-family: inherit;
+    letter-spacing: -0.2px;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-primary {
+    background: #007AFF;
+    color: white;
+}
+
+.btn-primary:disabled {
+    background: #a0cfff;
+}
+
+.btn-secondary {
+    background: #f2f2f7;
+    color: #007AFF;
+}
+
+.btn-danger {
+    background: #ff3b30;
+    color: white;
+}
+
+.btn-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.btn-group .btn {
+    flex: 1;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+    color: rgba(255,255,255,0.9);
+}
+
+.auth-footer a {
+    color: white;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+/* Cards - iOS grouped style */
+.section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #8e8e93;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 4px;
+    margin-bottom: 8px;
+    margin-top: 20px;
+}
+
+.section-title:first-child {
+    margin-top: 0;
+}
+
+.card-group {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    margin-bottom: 16px;
+}
+
+.card-item {
+    padding: 16px;
+    border-bottom: 0.5px solid #e5e5ea;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.card-item:last-child {
+    border-bottom: none;
+}
+
+.card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.card-icon.blue { background: #e0edff; }
+.card-icon.green { background: #e4f9e8; }
+.card-icon.orange { background: #fff3e0; }
+.card-icon.purple { background: #ede7f6; }
+
+.card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-content h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1c1c1e;
+    margin-bottom: 3px;
+}
+
+.card-content p {
+    font-size: 13px;
+    color: #8e8e93;
+    line-height: 1.4;
+}
+
+.card-chevron {
+    color: #c7c7cc;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+/* Status badges */
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.badge-PENDING { background: #fff3e0; color: #e65100; }
+.badge-APPROVED { background: #e4f9e8; color: #2e7d32; }
+.badge-REJECTED { background: #ffebee; color: #c62828; }
+.badge-REVIEWING { background: #e3f2fd; color: #1565c0; }
+
+/* Action buttons in cards */
+.card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 0.5px solid #e5e5ea;
+}
+
+.card-actions .btn {
+    padding: 10px;
+    font-size: 14px;
+    border-radius: 8px;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 50px 20px;
+}
+
+.empty-state .icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+}
+
+.empty-state h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1c1c1e;
+    margin-bottom: 6px;
+}
+
+.empty-state p {
+    font-size: 14px;
+    color: #8e8e93;
+}
+
+/* Bottom navigation */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 0.5px solid #e5e5ea;
+    display: flex;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    z-index: 100;
+}
+
+.nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0;
+    padding-top: 4px;
+    background: none;
+    border: none;
+    color: #8e8e93;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s;
+    gap: 3px;
+    font-family: inherit;
+}
+
+.nav-item.active {
+    color: #007AFF;
+}
+
+.nav-item .nav-icon {
+    font-size: 22px;
+    line-height: 1;
+}
+
+/* Alert / Toast */
+.toast {
+    position: fixed;
+    top: 60px;
+    left: 16px;
+    right: 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 1000;
+    animation: slideDown 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.toast-success { background: #30d158; color: white; }
+.toast-error { background: #ff3b30; color: white; }
+.toast-info { background: #007AFF; color: white; }
+
+@keyframes slideDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* File input */
+.file-upload-area {
+    border: 2px dashed #c7c7cc;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    background: #f9f9fb;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.file-upload-area:active {
+    background: #eef0f2;
+    border-color: #007AFF;
+}
+
+.file-upload-area .icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    color: #007AFF;
+}
+
+.file-upload-area p {
+    font-size: 15px;
+    color: #3a3a3c;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.file-upload-area small {
+    font-size: 12px;
+    color: #8e8e93;
+}
+
+/* Loading spinner */
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #e5e5ea;
+    border-top-color: #007AFF;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Fade transition */
+.fade-in {
+    animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
