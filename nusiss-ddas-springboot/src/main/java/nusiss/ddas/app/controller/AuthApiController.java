@@ -2,9 +2,11 @@ package nusiss.ddas.app.controller;
 
 import nusiss.ddas.app.model.JwtToken;
 import nusiss.ddas.app.model.User;
+import nusiss.ddas.app.model.enums.AuthProvider;
 import nusiss.ddas.app.repository.UserRepository;
 import nusiss.ddas.app.service.JwtTokenService;
 import nusiss.ddas.app.service.MfaChallengeService;
+import nusiss.ddas.app.service.TokenIssuanceService;
 import nusiss.ddas.app.service.TotpService;
 import nusiss.ddas.app.service.UserService;
 import nusiss.ddas.app.util.JwtUtil;
@@ -33,11 +35,12 @@ public class AuthApiController {
     private final JwtTokenService jwtTokenService;
     private final MfaChallengeService mfaChallengeService;
     private final TotpService totpService;
+    private final TokenIssuanceService tokenIssuanceService;
 
     public AuthApiController(UserService userService, UserDetailsService userDetailsService,
                              JwtUtil jwtUtil, UserRepository userRepository, PasswordEncoder passwordEncoder,
                              JwtTokenService jwtTokenService, MfaChallengeService mfaChallengeService,
-                             TotpService totpService) {
+                             TotpService totpService, TokenIssuanceService tokenIssuanceService) {
         this.userService = userService;
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
@@ -46,6 +49,7 @@ public class AuthApiController {
         this.jwtTokenService = jwtTokenService;
         this.mfaChallengeService = mfaChallengeService;
         this.totpService = totpService;
+        this.tokenIssuanceService = tokenIssuanceService;
     }
 
     @PostMapping("/register")
@@ -73,6 +77,11 @@ public class AuthApiController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        if (user.getAuthProvider() == AuthProvider.OIDC) {
+            return ResponseEntity.status(401).body(Map.of("error",
+                    "This account uses Single Sign-On. Please log in with the Keycloak button."));
+        }
+
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
@@ -88,7 +97,7 @@ public class AuthApiController {
             return ResponseEntity.ok(mfaResponse);
         }
 
-        return ResponseEntity.ok(issueTokensAndSetCookie(user, userDetails, response));
+        return ResponseEntity.ok(tokenIssuanceService.issueTokensAndSetCookie(user, userDetails, response));
     }
 
     /**
@@ -120,42 +129,7 @@ public class AuthApiController {
 
         mfaChallengeService.invalidateChallenge(challengeId);
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
-        return ResponseEntity.ok(issueTokensAndSetCookie(user, userDetails, response));
-    }
-
-    /**
-     * Issues a fresh access/refresh token pair for a fully-authenticated user
-     * (password, and MFA code if enabled, both already verified), invalidating
-     * any previous tokens and setting the jwtToken cookie - the same behavior
-     * the old single-step login() always performed.
-     */
-    private Map<String, String> issueTokensAndSetCookie(User user, UserDetails userDetails, HttpServletResponse response) {
-        jwtTokenService.invalidateUserTokens(user.getUserId());
-
-        String accessToken = jwtUtil.generateToken(userDetails, new HashMap<String, Object>() {{
-            put("role", user.getRole().name());
-        }});
-        String refreshToken = jwtUtil.generateRefreshToken(userDetails, new HashMap<>());
-
-        jwtTokenService.saveToken(user.getUserId(), accessToken, "ACCESS");
-        jwtTokenService.saveToken(user.getUserId(), refreshToken, "REFRESH");
-
-        ResponseCookie jwtCookie = ResponseCookie.from("jwtToken", accessToken)
-                .httpOnly(false)
-                .secure(false)
-                .path("/")
-                .maxAge(24 * 60 * 60)
-                .build();
-
-        response.setHeader("Set-Cookie", jwtCookie.toString());
-
-        Map<String, String> tokens = new HashMap<>();
-        tokens.put("accessToken", accessToken);
-        tokens.put("refreshToken", refreshToken);
-        tokens.put("role", user.getRole().name());
-        tokens.put("username", user.getUsername());
-
-        return tokens;
+        return ResponseEntity.ok(tokenIssuanceService.issueTokensAndSetCookie(user, userDetails, response));
     }
 
     @PostMapping("/refresh")

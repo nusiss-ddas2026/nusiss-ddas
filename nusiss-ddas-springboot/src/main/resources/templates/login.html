@@ -20,9 +20,11 @@
             </div>
             
             <div th:if="${param.error}" class="error-message">
-                Invalid username or password!
+                <span th:if="${param.error[0] == 'oidc_email_taken'}">This email already has a password account; log in with your password.</span>
+                <span th:if="${param.error[0] == 'oidc'}">Single Sign-On login failed. Please try again.</span>
+                <span th:unless="${param.error[0] == 'oidc' or param.error[0] == 'oidc_email_taken'}">Invalid username or password!</span>
             </div>
-            
+
             <form id="loginForm">
                 <div class="form-group">
                     <label for="username">Username</label>
@@ -49,6 +51,12 @@
                     <button type="submit" class="btn btn-login">Verify</button>
                 </div>
             </form>
+
+            <div class="login-divider" style="text-align: center; margin: 1em 0;">or</div>
+
+            <div style="text-align: center;">
+                <a th:href="@{/oauth2/authorization/keycloak}" class="btn btn-login">Sign in with Keycloak</a>
+            </div>
 
             <p class="register-link">
                 Don't have an account? <a th:href="@{/register}">Register here</a>

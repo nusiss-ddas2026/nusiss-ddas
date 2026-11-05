@@ -12,20 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = '/login';
         }
         
-        const role = localStorage.getItem('role');
-        
-        if (role === 'APPROVER') {
-            document.getElementById('requestBtn').style.display = 'inline-block';
-        } else {
-            document.getElementById('requestBtn').style.display = 'none';
-        }
-        
-        if (role === 'ADMIN') {
-            document.getElementById('userBtn').style.display = 'inline-block';
-        } else {
-            document.getElementById('userBtn').style.display = 'none';
-        }
-        
         const logoutForm = document.querySelector('form[action="/logout"]');
         if (logoutForm) {
             logoutForm.addEventListener('submit', function() {

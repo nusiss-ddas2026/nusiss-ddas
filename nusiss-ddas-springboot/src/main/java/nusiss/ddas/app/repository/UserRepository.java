@@ -2,6 +2,7 @@ package nusiss.ddas.app.repository;
 
 import nusiss.ddas.app.model.Department;
 import nusiss.ddas.app.model.User;
+import nusiss.ddas.app.model.enums.AuthProvider;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,4 +15,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
     List<User> findByDepartment(Department department);
+    Optional<User> findByEmail(String email);
+    Optional<User> findByEmailAndAuthProvider(String email, AuthProvider authProvider);
 }

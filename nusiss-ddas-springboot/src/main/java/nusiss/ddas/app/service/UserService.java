@@ -1,6 +1,7 @@
 package nusiss.ddas.app.service;
 
 import nusiss.ddas.app.model.User;
+import nusiss.ddas.app.model.enums.AuthProvider;
 import nusiss.ddas.app.model.enums.Role;
 import nusiss.ddas.app.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setEmail(email);
         user.setRole(Role.USER);
+        user.setAuthProvider(AuthProvider.LOCAL);
         return userRepository.save(user);
     }
 

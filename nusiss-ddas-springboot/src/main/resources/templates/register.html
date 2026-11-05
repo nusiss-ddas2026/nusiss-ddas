@@ -15,7 +15,7 @@
                 <span th:text="${error}"></span>
             </div>
             
-            <form id="registerForm">
+            <form id="registerForm" th:object="${user}">
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" th:field="*{username}" required autofocus>
